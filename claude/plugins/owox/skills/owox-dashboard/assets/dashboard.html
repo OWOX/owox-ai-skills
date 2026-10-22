@@ -49,8 +49,8 @@ a { color: var(--text-link); }
 .xpanel { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--border-default); background: var(--bg-nested); font-size: 13.5px; color: var(--text-secondary); display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .xpanel__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; }
 .xpanel__hint { font-size: 12px; }
-.xpanel { position: relative; padding-right: 30px; }
-.xpanel__x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; color: var(--text-muted); font: 400 18px/1 var(--font-body); cursor: pointer; }
+/* The × sits on its own row above the content, so the text keeps the panel's full width. */
+.xpanel__x { justify-self: end; width: 20px; height: 18px; margin: -6px -10px -4px 0; padding: 0; border: 0; background: transparent; color: var(--text-muted); font: 400 18px/1 var(--font-body); cursor: pointer; }
 .xpanel__x:hover { color: var(--text-primary); }
 .xpanel ul { margin: 0; padding-left: 1.1em; font: 400 12px/1.6 var(--font-mono); }
 .xpanel a { font-weight: 500; }
@@ -1467,13 +1467,19 @@ __THEME_CSS__
     const saved = xread(); saved.destination = fresh[0].id; xwrite(saved);
     runExport(c, fresh[0]);
   }
-  async function runExport(c, dest) {
+  // An export goes into the spreadsheet this block used last time. When that spreadsheet can no longer take it
+  // (deleted, or its tabs changed by hand), the block is exported once more into a new spreadsheet, quietly.
+  const SHEET_TROUBLE = /spreadsheet|sheet|not found|404|trash|deleted|access/i;
+  async function runExport(c, dest, fresh) {
     const parts = exportParts(c);
     const w = anchor ? PERIODS[period].win(anchor) : null;
-    const st = xstate[c.id] = { busy: true, title: `Exporting ${parts.length === 1 ? "1 table" : parts.length + " tables"} to Google Sheets (${dest.connectedGoogleAccount ? dest.name + " · " + dest.connectedGoogleAccount : dest.name})…`, steps: [] };
+    const where = dest.connectedGoogleAccount ? dest.name + " · " + dest.connectedGoogleAccount : dest.name;
+    const hidden = !!(fresh && xstate[c.id] && xstate[c.id].hidden);
+    const st = xstate[c.id] = { busy: true, hidden, title: `Exporting ${parts.length === 1 ? "1 table" : parts.length + " tables"} to ${fresh ? "a new spreadsheet" : "Google Sheets"} (${where})…`, steps: [] };
     renderAll();
-    const saved = xread(); const key = `${c.id}:${dest.id}`; const mem = saved[key] || { reports: {} };
-    let spreadsheet = mem.spreadsheet_id || null, link = mem.sheet_url || null; const runs = [];
+    const saved = xread(); const key = `${c.id}:${dest.id}`; const mem = fresh ? { reports: {} } : (saved[key] || { reports: {} });
+    const reused = !!mem.spreadsheet_id;
+    let spreadsheet = mem.spreadsheet_id || null, link = mem.sheet_url || null; const runs = []; let broken = false;
     for (const part of parts) {
       const name = sheetName(`${c.title || c.id} · ${part.label}`);
       const controls = { fields: part.input.fields };
@@ -1484,8 +1490,8 @@ __THEME_CSS__
         if (!res.ok && !(res.body && res.body.error_code === "permission_denied")) { reportId = null; }
       }
       if (!reportId) {
-        res = await call("add_report", Object.assign({ data_mart_id: part.data_mart_id, destination_id: dest.id, name }, controls, spreadsheet ? { spreadsheet_id: spreadsheet } : {}));
-        if (!res.ok && res.body && res.body.error_code === "similar_report_exists" && res.body.existing_report) {
+        res = await call("add_report", Object.assign({ data_mart_id: part.data_mart_id, destination_id: dest.id, name }, controls, spreadsheet ? { spreadsheet_id: spreadsheet } : {}, fresh ? { allow_similar: true } : {}));
+        if (!fresh && !res.ok && res.body && res.body.error_code === "similar_report_exists" && res.body.existing_report) {
           reportId = res.body.existing_report.report_id;
           res = await call("update_report", Object.assign({ report_id: reportId }, controls, { filters: controls.filters || [] }));
         }
@@ -1493,6 +1499,7 @@ __THEME_CSS__
       if (!res.ok) {
         st.error = exportError(res); st.steps.push(`${part.label}: not exported`);
         if (res.body && res.body.error_code === "permission_denied") { st.denied = true; const sv = xread(); delete sv.destination; xwrite(sv); break; }
+        if (reused && !fresh) { broken = true; break; }
         renderAll(); continue;
       }
       const v = res.v || {}; reportId = v.report_id || reportId; mem.reports[part.id] = reportId;
@@ -1504,6 +1511,7 @@ __THEME_CSS__
       runs.push({ i: st.steps.length - 1, label: part.label, report_id: reportId, run_id: runId });
       saved[key] = mem; xwrite(saved); renderAll();
     }
+    if (broken) return runExport(c, dest, true);
     st.link = link; renderAll();
     // Follow each run to its end (OWOX report runs can take a minute or more).
     const started = Date.now();
@@ -1514,12 +1522,13 @@ __THEME_CSS__
         const s1 = await call("get_report_run_status", { report_id: r.report_id, run_id: r.run_id });
         if (!s1.ok) { st.steps[r.i] = `${r.label}: status unknown`; break; }
         const v = s1.v || {};
-        if (!v.should_poll) { done = true; st.steps[r.i] = `${r.label}: ${v.status === "success" ? "done" : v.status + (v.error ? " · " + String(v.error).slice(0, 120) : "")}`; }
+        if (!v.should_poll) { done = true; r.trouble = v.status !== "success" && SHEET_TROUBLE.test(String(v.error || "")); st.steps[r.i] = `${r.label}: ${v.status === "success" ? "done" : v.status + (v.error ? " · " + String(v.error).slice(0, 120) : "")}`; }
         renderAll();
       }
     }
+    if (reused && !fresh && runs.some((r) => r.trouble)) return runExport(c, dest, true);
     st.busy = false;
-    st.title = st.error ? "Export finished with problems." : `Exported${w ? " for " + winLabel(w.cur) : ""} through the Destination ${dest.name}${dest.connectedGoogleAccount ? " (" + dest.connectedGoogleAccount + ")" : ""}. The reports stay in OWOX, so you can re-run or schedule them there.`;
+    st.title = st.error ? "Export finished with problems." : `Exported${w ? " for " + winLabel(w.cur) : ""}${fresh ? " into a new spreadsheet" : ""} through the Destination ${dest.name}${dest.connectedGoogleAccount ? " (" + dest.connectedGoogleAccount + ")" : ""}. The reports stay in OWOX, so you can re-run or schedule them there.`;
     renderAll();
   }
 
