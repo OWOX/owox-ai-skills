@@ -28,6 +28,16 @@ The plugin connects Claude to OWOX and adds these skills:
 
 **Claude on the web and desktop (paid plans):** Customize → Plugins → add `OWOX/owox-ai-skills` as a marketplace, or upload `claude/plugins/owox` as a zip. Then add the OWOX connector in Settings → Connectors and sign in to your OWOX project.
 
+### Where it runs
+
+| Where | Builds a dashboard | Opens and refreshes one |
+|---|---|---|
+| Claude Code, Claude desktop app | Yes, verified | — |
+| claude.ai (web, desktop chat) | Not yet verified; needs Code execution and file creation on | Yes, verified with a second account |
+| ChatGPT, Codex | Not yet: Claude artifacts do not exist there | No |
+
+A link to this repo alone does not install anything: add it as a plugin marketplace (above), or upload the plugin folder as a zip.
+
 ### What a dashboard needs
 
 - The OWOX connector in claude.ai (Settings → Connectors), signed in to the OWOX project. Dashboards are claude.ai artifacts and read data only through claude.ai connectors.
@@ -47,3 +57,7 @@ Never give Editor access: an Editor can republish the page. People outside your 
 The first open and every **Refresh data** click run the dashboard's queries (MCP Query Runs on your OWOX project, usually 20–30 per dashboard). Later opens within 12 hours show your own copy from your browser until you refresh. Exporting a chart creates OWOX Reports and runs them once (Report Runs).
 
 If claude.ai blocks a call with "needs your approval", set the OWOX connector's tools to **Always allow** in Settings → Connectors: claude.ai does not let artifacts call tools that ask for approval on every call.
+
+## License
+
+[MIT](LICENSE)
