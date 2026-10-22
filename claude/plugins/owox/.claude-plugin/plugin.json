@@ -20,5 +20,7 @@
     "mcp"
   ],
   "privacyPolicyUrl": "https://www.owox.com/policies/privacy",
+  "documentationUrl": "https://docs.owox.com/docs/getting-started/setup-guide/mcp/",
+  "supportUrl": "https://github.com/OWOX/owox-ai-skills/issues",
   "icon": ".claude-plugin/icon.png"
 }
