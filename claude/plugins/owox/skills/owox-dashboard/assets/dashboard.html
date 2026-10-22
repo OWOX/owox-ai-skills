@@ -45,13 +45,15 @@ a { color: var(--text-link); }
 .xport__btn svg { width: 16px; height: 16px; display: block; }
 .xport__tip { position: absolute; right: 0; top: calc(100% + 6px); white-space: nowrap; background: var(--bg-nested); border: 1px solid var(--border-default); padding: 4px 8px; font: 400 12px/1.4 var(--font-body); color: var(--text-primary); text-transform: none; letter-spacing: 0; display: none; z-index: 6; }
 .xport__btn:hover + .xport__tip, .xport__btn:focus-visible + .xport__tip { display: block; }
-.xpanel { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--border-default); background: var(--bg-nested); font-size: 13.5px; color: var(--text-secondary); display: grid; gap: 6px; }
-.xpanel__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* The panel also opens inside a narrow scorecard: everything in it shrinks to the block's width. */
+.xpanel { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--border-default); background: var(--bg-nested); font-size: 13.5px; color: var(--text-secondary); display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.xpanel__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; }
 .xpanel__hint { font-size: 12px; }
 .xpanel ul { margin: 0; padding-left: 1.1em; font: 400 12px/1.6 var(--font-mono); }
 .xpanel a { font-weight: 500; }
-.xpanel .select { height: 30px; font-size: 13px; }
-.btn--sm { height: 30px; padding: 0 12px; font-size: 13px; }
+.xpanel .select { flex: 1 0 100%; width: 100%; min-width: 0; max-width: 100%; height: 28px; font-size: 12.5px; text-overflow: ellipsis; }
+/* Compact actions; doubled class so the base .btn rules further down do not override them. */
+.btn.btn--sm { height: 24px; padding: 0 10px; font-size: 12px; gap: 6px; }
 .soft { margin: 6px 0 0; font: 400 12px/1.5 var(--font-mono); color: var(--warn); }
 .soft button { background: none; border: 0; padding: 0; margin-left: 6px; color: var(--text-link); font: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 button { font: inherit; }
