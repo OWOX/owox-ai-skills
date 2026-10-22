@@ -49,6 +49,9 @@ a { color: var(--text-link); }
 .xpanel { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--border-default); background: var(--bg-nested); font-size: 13.5px; color: var(--text-secondary); display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .xpanel__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; }
 .xpanel__hint { font-size: 12px; }
+.xpanel { position: relative; padding-right: 30px; }
+.xpanel__x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; color: var(--text-muted); font: 400 18px/1 var(--font-body); cursor: pointer; }
+.xpanel__x:hover { color: var(--text-primary); }
 .xpanel ul { margin: 0; padding-left: 1.1em; font: 400 12px/1.6 var(--font-mono); }
 .xpanel a { font-weight: 500; }
 .xpanel .select { flex: 1 0 100%; width: 100%; min-width: 0; max-width: 100%; height: 28px; font-size: 12.5px; text-overflow: ellipsis; }
@@ -1372,21 +1375,24 @@ __THEME_CSS__
   function exportButton(c) {
     const box = el("span", "xport" + (xstate[c.id] && xstate[c.id].busy ? " xport--busy" : ""));
     const b = el("button", "xport__btn"); b.type = "button"; b.setAttribute("aria-label", "Export to Google Sheets"); b.innerHTML = SHEETS_ICON;
-    b.addEventListener("click", () => startExport(c));
+    b.addEventListener("click", () => { const st = xstate[c.id]; if (st && st.hidden) { st.hidden = false; renderAll(); return; } startExport(c); });
     box.append(b, el("span", "xport__tip", "Export to Google Sheets"));
     return box;
   }
   function exportPanel(c) {
-    const st = xstate[c.id]; if (!st) return null;
+    const st = xstate[c.id]; if (!st || st.hidden) return null;
     const p = el("div", "xpanel");
-    const closeBtn = (label) => { const x = el("button", "linkbtn", label || "Close"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); }); return x; };
+    // A small × closes the panel at any step. A running export keeps going and the icon brings the panel back.
+    const x = el("button", "xpanel__x", "\u00d7"); x.type = "button"; x.setAttribute("aria-label", "Close");
+    x.addEventListener("click", () => { if (st.busy) st.hidden = true; else delete xstate[c.id]; renderAll(); });
+    p.append(x);
     if (st.connect) {
       // Step 2 of connecting: the viewer finishes Google sign-in on the OWOX page, then comes back.
       p.append(el("div", null, "Connect your own Google Sheets Destination in OWOX: open the page below, sign in to Google and allow access. The Destination is created as soon as you approve. Then come back and press Done."));
       const row = el("div", "xpanel__row");
       const a = el("a", null, "Open the OWOX page to connect Google Sheets ↗"); a.href = st.connect.url; a.target = "_blank"; a.rel = "noopener";
       const done = el("button", "btn btn--sm", "Done, export now"); done.type = "button"; done.addEventListener("click", () => afterConnect(c));
-      row.append(a, done, closeBtn("Cancel")); p.append(row);
+      row.append(a, done); p.append(row);
       if (st.error) p.append(el("p", "state state--bad", st.error));
       return p;
     }
@@ -1394,7 +1400,7 @@ __THEME_CSS__
       p.append(el("div", null, st.offerConnect));
       const row = el("div", "xpanel__row");
       const go = el("button", "btn btn--sm", "Connect Google Sheets Destination"); go.type = "button"; go.addEventListener("click", () => connectSheets(c));
-      row.append(go, closeBtn("Cancel")); p.append(row);
+      row.append(go); p.append(row);
       return p;
     }
     if (st.choose) {
@@ -1404,8 +1410,7 @@ __THEME_CSS__
       const nw = el("option", null, "Connect your own Google Sheets Destination…"); nw.value = "__new"; sel.append(nw);
       const go = el("button", "btn btn--sm", "Export"); go.type = "button";
       go.addEventListener("click", () => { if (sel.value === "__new") { connectSheets(c); return; } const d = st.choose.find((x) => x.id === sel.value); const saved = xread(); saved.destination = d.id; xwrite(saved); runExport(c, d); });
-      const x = el("button", "linkbtn", "Cancel"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); });
-      row.append(sel, go, x); p.append(row);
+      row.append(sel, go); p.append(row);
       p.append(el("div", "xpanel__hint", "The spreadsheet is created in the Google Drive of the Destination you pick. Pick your own, or connect your own Google Sheets Destination."));
       return p;
     }
@@ -1414,7 +1419,6 @@ __THEME_CSS__
     if (st.link) { const a = el("a", null, "Open in Google Sheets ↗"); a.href = st.link; a.target = "_blank"; a.rel = "noopener"; p.append(a); }
     if (st.error) p.append(el("p", "state state--bad", st.error));
     if (!st.busy && st.denied) { const go = el("button", "btn btn--sm", "Connect your own Google Sheets Destination"); go.type = "button"; go.addEventListener("click", () => connectSheets(c)); p.append(go); }
-    if (!st.busy) { const x = el("button", "linkbtn", "Close"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); }); p.append(x); }
     return p;
   }
   async function call(tool, input) {
