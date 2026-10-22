@@ -4,3 +4,5 @@ __pycache__/
 # dashboards built from the skill keep their config next to the user's work, never here
 config.json
 dashboard.html
+# the skill's engine has the same name and ships with the plugin
+!claude/plugins/owox/skills/owox-dashboard/assets/dashboard.html

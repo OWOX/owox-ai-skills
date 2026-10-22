@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Build an OWOX dashboard page from a JSON config.
 
 Usage:
@@ -19,7 +18,10 @@ ENGINE = Path(__file__).resolve().parent.parent / "assets" / "dashboard.html"
 DEFAULT_LOGO = Path(__file__).resolve().parent.parent / "assets" / "owox-app-icon.svg"
 LOGO_TYPES = {".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif"}
 UNSAFE_SVG = re.compile(r"<script|<foreignObject|\son[a-z]+\s*=|javascript:", re.I)
-DEFAULT_FONTS = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap"
+# The engine links its default font stylesheet and preconnects to the font host first; a theme may link
+# another stylesheet from that same host.
+FONTS_LINK = re.compile(r'<link rel="stylesheet" href="[^"]*">')
+FONT_HOST = re.search(r'<link rel="preconnect" href="([^"]+)">', ENGINE.read_text()).group(1)
 SCOPES = {"static", "range", "window"}
 COMPONENT_TYPES = {"scorecards", "plan_vs_fact", "trend", "breakdown", "waterfall", "drivers", "table", "notes", "data"}
 FORMATS = {"currency", "number", "percent", "ratio", "decimal"}
@@ -169,7 +171,7 @@ def validate(cfg):
     else:
         need(logo in (None, False), "theme.logo is an object { file, alt, scale } or false")
     fonts = theme.get("fonts_css")
-    need(not fonts or fonts.startswith("https://fonts.googleapis.com/"), "theme.fonts_css must be a Google Fonts stylesheet URL")
+    need(not fonts or fonts.startswith(FONT_HOST + "/"), "theme.fonts_css must be a Google Fonts stylesheet URL")
     return errs
 
 
@@ -218,9 +220,10 @@ def main():
         cfg["_logo"] = {"src": f"data:{LOGO_TYPES[path.suffix.lower()]};base64," + base64.b64encode(path.read_bytes()).decode(),
                         "alt": spec.get("alt", ""), "scale": spec.get("scale", 1)}
     page = ENGINE.read_text()
+    if theme.get("fonts_css"):
+        page = FONTS_LINK.sub(lambda _: f'<link rel="stylesheet" href="{html.escape(theme["fonts_css"])}">', page, count=1)
     blob = json.dumps(cfg, ensure_ascii=False, indent=1).replace("</", "<\\/")
     page = (page.replace("__TITLE__", html.escape(cfg.get("title") or "Dashboard"))
-                .replace("__FONTS_CSS__", html.escape(theme.get("fonts_css") or DEFAULT_FONTS))
                 .replace("__THEME_CSS__", theme_css(theme))
                 .replace("__CONFIG__", blob))
     Path(sys.argv[2]).write_text(page)

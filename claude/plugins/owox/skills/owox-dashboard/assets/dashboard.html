@@ -1,0 +1,1621 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&amp;family=Space+Mono:wght@400;700&amp;display=swap">
+<style>
+/* OWOX dashboard engine v1. The page is generic: everything it shows comes from the JSON config
+   below and from live query_data_mart calls on the viewer's own OWOX connector. */
+:root {
+  /* owox.com design system, dark mode: ink ground, 1px lines instead of fills, Signal Yellow for the one call to action,
+     blue for metrics, green/yellow/red only for states. */
+  --bg-page:#1a1f2e; --bg-elevated:#1f2536; --bg-surface:#242a3b; --bg-nested:#2b3346;
+  --border-quiet:#2e374b; --border-default:#3a4358; --border-strong:#4b5570; --border-hover:#6f778d;
+  --text-primary:#e9ecf2; --text-secondary:#9ba4b6; --text-muted:#828ea5; --text-decor:#646f87;
+  --text-link:#459ce9; --key-figure:#459ce9; --focus-ring:#459ce9;
+  --metric:#459ce9; --metric-2:#ab6fe5; --plan:#e9ecf2; --prior:#4b5570; --grid-line:rgba(46,55,75,.55);
+  --ok:#4cbb7c; --warn:#f3d16c; --bad:#ed7475; --idle:#828ea5;
+  --cta-fill:#f2c94c; --cta-ink:#1a1f2e;
+  --font-body:"Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:"Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius:0px; --cell-h:42px;
+  color-scheme: dark;
+}
+body {
+  margin:0; background-color: var(--bg-page); color: var(--text-primary);
+  font: 400 15.5px/1.6 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+body.grid-bg {
+  background-image: linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 200px var(--cell-h);
+}
+.page { overflow-x: clip; max-width: 1240px; margin: 0 auto; padding-block: 32px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 24px; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.mono-label { font: 400 11px/1.5 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); margin: 0; }
+.mono { font: 400 12.5px/1.6 var(--font-mono); }
+a { color: var(--text-link); }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* Export to Google Sheets: a quiet icon in the block's head, shown on hover or keyboard focus. */
+.xport { position: relative; display: inline-flex; flex-shrink: 0; }
+.xport__btn { width: 26px; height: 26px; padding: 0; border: 1px solid transparent; border-radius: var(--radius); background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 120ms; }
+.block:hover .xport__btn, .card:hover .xport__btn, .xport__btn:focus-visible, .xport--busy .xport__btn { opacity: 1; }
+.card .xport__btn { width: 22px; height: 22px; } .card .xport__btn svg { width: 14px; height: 14px; }
+@media (hover: none) { .xport__btn { opacity: 1; } }
+.xport__btn:hover { border-color: var(--border-hover); }
+.xport__btn svg { width: 16px; height: 16px; display: block; }
+.xport__tip { position: absolute; right: 0; top: calc(100% + 6px); white-space: nowrap; background: var(--bg-nested); border: 1px solid var(--border-default); padding: 4px 8px; font: 400 12px/1.4 var(--font-body); color: var(--text-primary); text-transform: none; letter-spacing: 0; display: none; z-index: 6; }
+.xport__btn:hover + .xport__tip, .xport__btn:focus-visible + .xport__tip { display: block; }
+.xpanel { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--border-default); background: var(--bg-nested); font-size: 13.5px; color: var(--text-secondary); display: grid; gap: 6px; }
+.xpanel__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.xpanel ul { margin: 0; padding-left: 1.1em; font: 400 12px/1.6 var(--font-mono); }
+.xpanel a { font-weight: 500; }
+.xpanel .select { height: 30px; font-size: 13px; }
+.btn--sm { height: 30px; padding: 0 12px; font-size: 13px; }
+.soft { margin: 6px 0 0; font: 400 12px/1.5 var(--font-mono); color: var(--warn); }
+.soft button { background: none; border: 0; padding: 0; margin-left: 6px; color: var(--text-link); font: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+button { font: inherit; }
+[hidden] { display: none !important; }
+
+/* Header */
+.top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px 24px; }
+.top .asof { grid-column: 1 / -1; text-align: left; }
+.brand { min-width: 0; }
+/* The logo sits on the title's line: centred on it and sized from the title's own font size. */
+.brand__row { display: flex; align-items: center; gap: 0.32em; margin-top: 8px; min-width: 0; font: 500 clamp(1.9rem, 4.2vw, 48px)/1.06 var(--font-body); }
+.brand__row h1 { margin: 0 !important; font: inherit; letter-spacing: -.03em; min-width: 0; text-wrap: balance; }
+.brand__logo { display: block; height: calc(var(--logo-scale, 1) * 0.92em); width: auto; max-width: 4.5em; flex-shrink: 0; object-fit: contain; }
+@media (max-width: 680px) { .top { grid-template-columns: minmax(0, 1fr); } }
+.top h1 { font: 500 clamp(1.9rem, 4.2vw, 48px)/1.06 var(--font-body); letter-spacing: -.03em; margin: 0; text-wrap: balance; }
+.top .lede { margin: 10px 0 0; color: var(--text-secondary); max-width: 66ch; }
+.controls { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.controls__row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.progress { grid-column: 2; justify-self: end; margin: -4px 0 0; color: var(--text-secondary); }
+@media (max-width: 680px) { .progress { grid-column: 1; justify-self: start; } }
+@media (max-width: 680px) { .controls__row { justify-content: flex-start; } }
+.btn { font: 500 15px/1 var(--font-body); height: 40px; padding: 0 20px; background: var(--cta-fill); color: var(--cta-ink); border: 0; border-radius: var(--radius); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.btn:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,.85); }
+.btn[disabled] { opacity: .55; cursor: default; box-shadow: none; }
+.btn--ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--border-default); }
+.select { height: 40px; padding: 0 12px; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius); font: 400 14px var(--font-body); }
+.asof { text-align: right; margin: 0; color: var(--text-muted); }
+.summary { margin: 0; padding: 14px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius); color: var(--text-primary); font-size: 16.5px; }
+.summary b { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+.summary p { margin: 0; } .summary p + p { margin-top: 6px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 8px; overflow-x: auto; }
+.tab { background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: var(--radius); color: var(--text-secondary); padding: 0 16px; height: 36px; cursor: pointer; font: 400 12px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.tab:hover { border-color: var(--border-hover); color: var(--text-primary); }
+.tab[aria-selected="true"] { background: #0b63b8; border-color: #0b63b8; color: #ffffff; }
+
+/* Grid of blocks */
+.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 24px; }
+.span-2 { grid-column: span 2; } .span-3 { grid-column: span 3; } .span-4 { grid-column: span 4; } .span-6 { grid-column: 1 / -1; }
+@media (max-width: 980px) { .span-2, .span-3, .span-4 { grid-column: span 3; } }
+@media (max-width: 680px) { .grid { grid-template-columns: minmax(0, 1fr); } .span-2, .span-3, .span-4, .span-6 { grid-column: 1 / -1; } }
+.block { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius); min-width: 0; display: flex; flex-direction: column; transition: border-color 180ms cubic-bezier(.2,0,.2,1); }
+.block:hover { border-color: var(--border-hover); }
+.block__head { display: flex; align-items: center; gap: 12px; min-height: var(--cell-h); margin: 0; padding: 0 16px 0 20px; background: var(--bg-nested); border-bottom: 1px solid var(--border-quiet); min-width: 0; }
+.block__title { color: var(--text-muted); margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.block__body { padding: 16px 20px 20px; min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.desc { color: var(--text-muted); font-size: 13px; line-height: 1.5; margin: 10px 0 0; }
+.tag { display: inline-block; font: 400 10px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; padding: 3px 5px; border: 1px solid var(--border-default); color: var(--text-secondary); margin-right: 6px; vertical-align: 1px; }
+
+/* Scorecards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 14px; }
+.card { background: var(--bg-surface); border: 1px solid var(--border-default); border-top: 3px solid var(--idle); border-radius: var(--radius); padding: 14px 18px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.card details.src { margin-top: auto; }
+.card .spark { margin-bottom: 4px; }
+.card--ok { border-top-color: var(--ok); } .card--warn { border-top-color: var(--warn); } .card--bad { border-top-color: var(--bad); } .card--idle { border-top-color: var(--idle); }
+.card__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 16px; }
+.card__name { font: 500 15px/1.35 var(--font-body); margin: 0; display: inline-flex; gap: 8px; align-items: center; }
+.card__fact { font: 700 clamp(22px, 2.3vw, 28px)/1.05 var(--font-mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin: 2px 0 0; overflow-wrap: anywhere; }
+.card__change { font: 400 12.5px/1.5 var(--font-mono); margin: 0; }
+.card__lines { margin: 0; padding: 0; list-style: none; font: 400 12px/1.6 var(--font-mono); color: var(--text-secondary); }
+.card__lines em { font-style: normal; color: var(--text-muted); }
+.up-good { color: var(--ok); } .down-bad { color: var(--bad); } .flat { color: var(--text-muted); }
+.status { display: inline-flex; align-items: center; gap: 6px; font: 400 10.5px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.status i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
+.status--ok { color: var(--ok); } .status--warn { color: var(--warn); } .status--bad { color: var(--bad); } .status--idle { color: var(--idle); }
+.spark { height: 34px; margin-top: 2px; }
+.spark svg { width: 100%; height: 34px; display: block; overflow: visible; }
+
+/* Help tooltip */
+.help { position: relative; display: inline-flex; flex-shrink: 0; }
+.help__btn { width: 18px; height: 18px; border: 1px solid var(--border-default); border-radius: var(--radius); background: transparent; color: var(--text-muted); font: 400 10.5px/1 var(--font-mono); cursor: help; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.help__pop { position: absolute; left: 0; top: calc(100% + 8px); width: min(300px, 78vw); z-index: 6; background: var(--bg-nested); border: 1px solid var(--border-default); padding: 10px 14px; color: var(--text-secondary); font: 400 13px/1.55 var(--font-body); text-transform: none; letter-spacing: 0; display: none; }
+.help:hover .help__pop, .help:focus-within .help__pop { display: block; }
+.help__pop p { margin: 0; } .help__pop p + p { margin-top: 6px; color: var(--text-muted); font: 400 11.5px/1.5 var(--font-mono); }
+
+/* Charts */
+.chart { position: relative; min-height: 120px; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--text-muted); font: 400 10.5px var(--font-mono); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font: 400 11.5px var(--font-mono); color: var(--text-secondary); }
+.legend i { width: 14px; height: 10px; display: inline-block; background: var(--metric); }
+.legend i.line { height: 0; border-top: 2px solid var(--metric); background: none; }
+.legend i.plan { height: 0; border-top: 2px dashed var(--plan); background: none; }
+.legend i.prior { background: var(--prior); }
+.legend i.fc { background: none; border: 1px dashed var(--metric); }
+.tip { position: absolute; pointer-events: none; background: var(--bg-nested); border: 1px solid var(--border-default); padding: 6px 10px; font: 400 12px/1.5 var(--font-mono); color: var(--text-primary); white-space: nowrap; z-index: 4; }
+.empty, .loading { color: var(--text-muted); padding: 12px 0; margin: 0; }
+.state { margin: 0; padding: 10px 14px; border: 1px solid var(--border-default); font-size: 14px; color: var(--text-secondary); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.state--bad { border-color: var(--bad); } .state--warn { border-color: var(--warn); }
+
+/* Source (collapsed) */
+details.src { margin-top: 12px; border-top: 1px dashed var(--border-quiet); padding-top: 8px; font: 400 11.5px/1.6 var(--font-mono); color: var(--text-muted); }
+details.src > summary { cursor: pointer; list-style: none; display: inline-flex; gap: 6px; align-items: center; color: var(--text-muted); text-decoration: underline dotted; text-underline-offset: 3px; }
+details.src > summary::-webkit-details-marker { display: none; }
+details.src > summary::before { content: "+"; color: var(--text-decor); }
+details.src[open] > summary::before { content: "−"; }
+.src__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 20px; margin-top: 10px; }
+.src__role { margin: 0; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-decor); }
+.src__mart { color: var(--text-secondary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.src__via { color: var(--text-decor); font-size: 10.5px; margin: 0; }
+details.src ul { margin: 2px 0 0; padding-left: 1.1em; }
+details.src li a { color: var(--text-muted); text-decoration: none; }
+details.src li a:hover { color: var(--text-primary); text-decoration: underline dotted; }
+details.src ul.src__kinds { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; font-family: var(--font-body); font-size: 12.5px; color: var(--text-secondary); }
+details.src .src__text { margin: 2px 0 0; color: var(--text-secondary); font-family: var(--font-body); font-size: 12.5px; }
+.linkbtn { background: none; border: 0; padding: 0; margin-top: 10px; color: var(--text-muted); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; font: inherit; }
+.linkbtn:hover { color: var(--text-primary); }
+
+/* Drivers */
+.drivers { display: grid; gap: 10px; }
+.drivers__bar { display: flex; justify-content: flex-end; gap: 12px; }
+details.ins { border: 1px solid var(--border-default); border-left: 3px solid var(--idle); background: var(--bg-surface); border-radius: var(--radius); }
+details.ins.ins--ok { border-left-color: var(--ok); } details.ins.ins--bad { border-left-color: var(--bad); }
+details.ins > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr) auto 110px 26px; gap: 12px; align-items: center; padding: 10px 14px; }
+details.ins:hover .xport__btn { opacity: 1; }
+.xport__btn.dig { color: var(--text-secondary); }
+.dig__fallback { width: 100%; min-height: 120px; background: var(--bg-nested); color: var(--text-primary); border: 1px solid var(--border-default); font: 400 12px/1.5 var(--font-mono); }
+details.ins > summary::-webkit-details-marker { display: none; }
+.ins__id { font: 400 11px var(--font-mono); color: var(--text-decor); }
+.ins__title { margin: 0; font-weight: 500; min-width: 0; }
+.ins__impact { font: 700 14px var(--font-mono); }
+.ins__body { padding: 4px 14px 14px; display: grid; gap: 8px; font-size: 14px; color: var(--text-secondary); }
+.ins__body h4 { margin: 0 0 2px; font: 400 10.5px/1.4 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.ins__body p, .ins__body ul { margin: 0; } .ins__body ul { padding-left: 1.1em; }
+@media (max-width: 560px) { details.ins > summary { grid-template-columns: minmax(0, 1fr) auto; } .ins__id, .ins .spark { display: none; } }
+
+/* Table */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--border-quiet); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font: 400 10.5px/1.5 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); cursor: pointer; user-select: none; }
+td.num { font-size: 12.5px; }
+
+/* Notes and log */
+.data__h { margin: 18px 0 6px; }
+.notes { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; color: var(--text-secondary); font-size: 14px; max-width: 95ch; }
+details.about > summary, details.log > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 12px; min-height: var(--cell-h); padding: 0 20px; background: var(--bg-nested); color: var(--text-muted); }
+details.about > summary::-webkit-details-marker, details.log > summary::-webkit-details-marker { display: none; }
+details.about > summary::before, details.log > summary::before { content: "+"; font-family: var(--font-mono); color: var(--text-decor); }
+details.about[open] > summary::before, details.log[open] > summary::before { content: "−"; }
+.run { border-bottom: 1px solid var(--border-quiet); padding: 10px 0; }
+.run:last-child { border-bottom: 0; }
+.run__head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.call { display: grid; gap: 4px; margin-top: 10px; padding-left: 14px; border-left: 1px solid var(--border-default); }
+.call.is-target { border-left: 3px solid var(--metric); background: color-mix(in srgb, var(--metric) 10%, transparent); padding: 8px 12px; }
+.call__line { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1px solid var(--border-quiet); font: 400 11.5px/1.5 var(--font-mono); color: var(--text-secondary); overflow-x: auto; white-space: pre; }
+.ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+@media (prefers-reduced-motion: reduce) { .block, .help__pop { transition: none; } }
+__THEME_CSS__
+</style>
+
+<div class="page" id="page">
+  <header class="top">
+    <div class="brand">
+      <p class="mono-label" id="kicker"></p>
+      <div class="brand__row">
+        <img class="brand__logo" id="logo" alt="" hidden>
+        <h1 id="title"></h1>
+      </div>
+    </div>
+    <div class="controls__row">
+      <select class="select" id="period" aria-label="Period"></select>
+      <button class="btn" id="refresh" type="button" disabled>Refresh data</button>
+    </div>
+    <p class="mono progress" id="progress" hidden></p>
+    <p class="mono asof" id="asof">Connecting to OWOX…</p>
+  </header>
+  <p class="state" id="page-state" hidden></p>
+  <div class="summary" id="summary" hidden></div>
+  <nav class="tabs" id="tabs" role="tablist" hidden></nav>
+  <main id="pages"></main>
+  <details class="block about" id="about">
+    <summary><span class="mono-label">About these numbers</span></summary>
+    <div class="block__body" id="about-body"></div>
+  </details>
+  <details class="block log" id="log">
+    <summary><span class="mono-label">Run log · the last 20 data loads and the exact OWOX queries</span></summary>
+    <div class="block__body" id="log-body"><p class="empty">No runs recorded yet.</p></div>
+  </details>
+</div>
+
+<script type="application/json" id="owox-dashboard-config">__CONFIG__</script>
+<script>
+(() => {
+  "use strict";
+  const CFG = JSON.parse(document.getElementById("owox-dashboard-config").textContent);
+  const SERVER = CFG.connector;
+  const TOOL = "query_data_mart";
+  const APP = (CFG.app_url || "https://app.owox.com").replace(/\/$/, "");
+  const PROJECT = CFG.project || {};
+  const TZ = CFG.time_zone || "UTC";
+  const LOCALE = CFG.locale || "en-US";
+  const CURRENCY = CFG.currency || "USD";
+  const QUERIES = CFG.queries || {};
+  const METRICS = CFG.metrics || {};
+  const PAGES = CFG.pages || [];
+  const COMPONENTS = {};
+  PAGES.forEach((p) => (p.components || []).forEach((c, i) => { c.id = c.id || `${p.id || p.title}-${i}`; COMPONENTS[c.id] = c; }));
+
+  // ---------- small helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const NS = "http://www.w3.org/2000/svg";
+  const svgEl = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+  const isNum = (v) => typeof v === "number" && isFinite(v);
+
+  // ---------- theme: dark first, light when the viewer's theme asks for it (CSS tokens) ----------
+  if (!(CFG.theme && CFG.theme.grid === false)) document.body.classList.add("grid-bg");
+
+  // ---------- dates (ISO day strings, UTC math) ----------
+  const D = {
+    parse(s) { return new Date(s + "T00:00:00Z"); },
+    iso(d) { return d.toISOString().slice(0, 10); },
+    add(s, n) { const d = D.parse(s); d.setUTCDate(d.getUTCDate() + n); return D.iso(d); },
+    year(s) { return +s.slice(0, 4); }, month(s) { return +s.slice(5, 7); },
+    monthKey(s) { return s.slice(0, 7); },
+    dim(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); },
+    ymd(y, m, d) { return `${y}-${String(m).padStart(2, "0")}-${String(Math.min(d, D.dim(y, m))).padStart(2, "0")}`; },
+    shiftYears(s, n) { return D.ymd(D.year(s) + n, D.month(s), +s.slice(8, 10)); },
+    diff(a, b) { return Math.round((D.parse(b) - D.parse(a)) / 864e5); },
+    today() { return new Date().toISOString().slice(0, 10); },
+  };
+  function toDay(v) {
+    if (v == null) return null;
+    const s = String(v).trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+    m = s.match(/^(\d{4})-(\d{2})$/); if (m) return `${m[1]}-${m[2]}-01`;
+    return null;
+  }
+  const fmtDay = (s, opts) => s ? D.parse(s).toLocaleDateString(LOCALE, Object.assign({ month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }, opts || {})) : "—";
+  const fmtMonth = (s) => D.parse(s).toLocaleDateString(LOCALE, { month: "short", timeZone: "UTC" });
+  const fmtStamp = (iso) => { if (!iso) return "—"; const d = new Date(iso); if (isNaN(d)) return "—"; return d.toLocaleString(LOCALE, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ, timeZoneName: "short" }); };
+
+  // ---------- periods ----------
+  const PERIODS = {
+    ytd: { label: "Year to date", win(a) { const y = D.year(a); return { cur: [`${y}-01-01`, a], cmp: [`${y - 1}-01-01`, D.shiftYears(a, -1)], cmpLabel: "same dates last year", cmpShort: "last year" }; } },
+    mtd: { label: "Month to date", win(a) { const s = a.slice(0, 8) + "01"; return { cur: [s, a], cmp: [D.shiftYears(s, -1), D.shiftYears(a, -1)], cmpLabel: "same dates last year", cmpShort: "last year" }; } },
+    last_7_days: { label: "Last 7 days", win(a) { return { cur: [D.add(a, -6), a], cmp: [D.add(a, -13), D.add(a, -7)], cmpLabel: "the 7 days before", cmpShort: "prior 7 days" }; } },
+    last_28_days: { label: "Last 28 days", win(a) { return { cur: [D.add(a, -27), a], cmp: [D.add(a, -55), D.add(a, -28)], cmpLabel: "the 28 days before", cmpShort: "prior 28 days" }; } },
+    last_365_days: { label: "Last 365 days", win(a) { return { cur: [D.add(a, -364), a], cmp: [D.add(a, -729), D.add(a, -365)], cmpLabel: "the 365 days before", cmpShort: "prior 365 days" }; } },
+    last_week: { label: "Last full week", win(a) { const dow = (D.parse(a).getUTCDay() + 6) % 7; const end = dow === 6 ? a : D.add(a, -dow - 1); return { cur: [D.add(end, -6), end], cmp: [D.add(end, -13), D.add(end, -7)], cmpLabel: "the week before", cmpShort: "prior week" }; } },
+    last_month: { label: "Last full month", win(a) { let y = D.year(a), m = D.month(a); if (+a.slice(8, 10) !== D.dim(y, m)) { m -= 1; if (!m) { m = 12; y -= 1; } } const s = D.ymd(y, m, 1), e = D.ymd(y, m, 31); return { cur: [s, e], cmp: [D.shiftYears(s, -1), D.ymd(y - 1, m, 31)], cmpLabel: "the same month last year", cmpShort: "last year" }; } },
+    last_year: { label: "Last full year", win(a) { const y = a === `${D.year(a)}-12-31` ? D.year(a) : D.year(a) - 1; return { cur: [`${y}-01-01`, `${y}-12-31`], cmp: [`${y - 1}-01-01`, `${y - 1}-12-31`], cmpLabel: "the year before", cmpShort: "year before" }; } },
+    last_quarter: { label: "Last full quarter", win(a) { let y = D.year(a), q = Math.ceil(D.month(a) / 3); const qEnd = D.ymd(y, q * 3, 31); if (a !== qEnd) { q -= 1; if (!q) { q = 4; y -= 1; } } const s = D.ymd(y, q * 3 - 2, 1), e = D.ymd(y, q * 3, 31); return { cur: [s, e], cmp: [D.ymd(y - 1, q * 3 - 2, 1), D.ymd(y - 1, q * 3, 31)], cmpLabel: "the same quarter last year", cmpShort: "last year" }; } },
+  };
+  const periodKeys = ((CFG.periods && CFG.periods.options) || ["ytd", "last_365_days", "last_28_days", "last_7_days", "last_week", "last_month", "last_quarter", "last_year"]).filter((k) => PERIODS[k]);
+  let period = (CFG.periods && CFG.periods.default && PERIODS[CFG.periods.default]) ? CFG.periods.default : periodKeys[0];
+  const winLabel = (w) => w[0] === w[1] ? fmtDay(w[0]) : `${fmtDay(w[0], { year: D.year(w[0]) === D.year(w[1]) ? undefined : "numeric" })} – ${fmtDay(w[1])}`;
+
+  // ---------- formatting ----------
+  const nf = (o) => new Intl.NumberFormat(LOCALE, o);
+  function fmt(v, format, compact) {
+    if (!isNum(v)) return "—";
+    const c = compact && Math.abs(v) >= 10000;
+    switch (format) {
+      case "currency": { const cents = !c && v !== 0 && Math.abs(v) < 100 && !Number.isInteger(v); return nf({ style: "currency", currency: CURRENCY, minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: c ? 1 : (cents ? 2 : 0), notation: c ? "compact" : "standard" }).format(v); }
+      case "percent": return nf({ style: "percent", maximumFractionDigits: Math.abs(v) < 0.1 ? 2 : 1 }).format(v);
+      case "ratio": return nf({ maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(v);
+      case "decimal": return nf({ maximumFractionDigits: 2 }).format(v);
+      default: return nf({ maximumFractionDigits: c ? 1 : 0, notation: c ? "compact" : "standard" }).format(v);
+    }
+  }
+  function fmtDelta(v, format) {
+    if (!isNum(v)) return "—";
+    const sign = v > 0 ? "+" : v < 0 ? "−" : "±";
+    if (format === "percent") return `${sign}${nf({ maximumFractionDigits: 2 }).format(Math.abs(v) * 100)} pp`;
+    return sign + fmt(Math.abs(v), format, true);
+  }
+  const fmtPct = (v) => !isNum(v) ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : "±"}${nf({ maximumFractionDigits: Math.abs(v) < 0.1 ? 1 : 0 }).format(Math.abs(v) * 100)}%`;
+  const arrow = (v) => !isNum(v) || v === 0 ? "" : v > 0 ? "↑ " : "↓ ";
+
+  // ---------- query plumbing ----------
+  // query_data_mart answers with a header-once TSV under `rows` and column_metadata in the same order.
+  function toTable(payload) {
+    let p = payload;
+    if (typeof p === "string") { try { p = JSON.parse(p); } catch (_) { return { rows: [], totals: {}, updated: null, error: p }; } }
+    if (!p || typeof p !== "object") return { rows: [], totals: {}, updated: null };
+    const meta = p.column_metadata || [];
+    const names = meta.map((c) => c.name);
+    const numeric = meta.map((c) => /INT|FLOAT|NUMERIC|DECIMAL|DOUBLE|NUMBER|BIGNUMERIC/i.test(c.type || ""));
+    let rows = [];
+    if (typeof p.rows === "string") {
+      const lines = p.rows.split("\n").filter((l) => l.length);
+      rows = lines.slice(1).map((line) => {
+        const cells = line.split("\t"); const o = {};
+        names.forEach((n, i) => { const v = cells[i]; o[n] = v === undefined || v === "" ? null : numeric[i] ? Number(v) : v; });
+        return o;
+      });
+    } else if (Array.isArray(p.rows)) rows = p.rows;
+    const totals = {};
+    Object.entries(p.totals || {}).forEach(([k, v]) => { totals[k] = typeof v === "string" ? Number(v) : v; });
+    const dlu = p.data_last_updated || {};
+    return { rows, totals, updated: dlu.data_last_updated_at || null, coverage: dlu.coverage || null, truncated: !!p.truncated, mart: p.source && p.source.data_mart };
+  }
+
+  let anchor = null;                 // last complete day of the primary Data Mart
+  const store = {};                  // callKey -> { table, error, at }
+  const watches = new Map();         // callKey -> { unsub, qid, input, scope }
+  let mcp = null;
+
+  // The loaded range covers every period and its comparison: from Jan 1 two years before the anchor's year.
+  function rangeOf(a) { return [`${D.year(a) - 2}-01-01`, a]; }
+  // A daily series over ~3 years passes the 1,000-row limit, so it is read as one call per calendar year.
+  function rangeChunks(q, a) {
+    const daily = ((q.input || {}).date_buckets || []).some((b) => b.unit === "DAY");
+    const [from, to] = rangeOf(a);
+    if (!daily) return [[from, to]];
+    const out = []; for (let y = D.year(from); y <= D.year(to); y++) out.push([`${y}-01-01`, y === D.year(to) ? to : `${y}-12-31`]);
+    return out;
+  }
+  const chunkKeys = (qid) => { const q = QUERIES[qid]; if (!q || q.scope !== "range" || !anchor) return [qid]; const n = rangeChunks(q, anchor).length; return n === 1 ? [qid] : Array.from({ length: n }, (_, i) => `${qid}~${i}`); };
+  function withDateFilter(input, field, w) {
+    const out = JSON.parse(JSON.stringify(input));
+    out.filters = (out.filters || []).concat([{ field, operator: "between", value: { from: w[0], to: w[1] } }]);
+    return out;
+  }
+  // Every call the page makes: its key, the query id, the exact input sent to OWOX.
+  // Queries load per tab: a tab's queries run when the viewer first opens it (the anchor query always runs).
+  const visited = new Set();
+  function pageQueries(p) {
+    const out = new Set();
+    const fromMetric = (mid) => { const m = METRICS[mid]; if (!m) return; [m.series, m.window, m.plan, m.static].forEach((r) => r && out.add(r.query)); if (m.to_primary) (m.to_primary.multiply || []).forEach(fromMetric); };
+    const fromBreakdown = (b) => { if (b && b.query) { out.add(b.query); if (b.metric) fromMetric(b.metric); } };
+    (p.components || []).forEach((c) => {
+      if (c.type === "scorecards") (c.metrics || []).forEach(fromMetric);
+      if (c.metric) fromMetric(c.metric);
+      if (c.type === "breakdown") fromBreakdown(c);
+      if (c.type === "waterfall" || c.type === "table") fromBreakdown(COMPONENTS[c.from]);
+      if (c.type === "drivers") (c.from || []).forEach((b) => fromBreakdown(COMPONENTS[b]));
+    });
+    if (CFG.primary_metric) fromMetric(CFG.primary_metric);
+    return out;
+  }
+  function neededQueries() {
+    const need = new Set(CFG.anchor ? [CFG.anchor.query] : []);
+    visited.forEach((i) => PAGES[i] && pageQueries(PAGES[i]).forEach((q) => need.add(q)));
+    return need;
+  }
+  function plannedCalls() {
+    const calls = [];
+    const need = neededQueries();
+    Object.entries(QUERIES).forEach(([qid, q]) => {
+      if (!need.has(qid)) return;
+      const base = Object.assign({ data_mart_id: q.data_mart_id }, q.input || {});
+      const scope = q.scope || "static";
+      if (scope === "static") calls.push({ key: qid, qid, input: base, scope });
+      else if (!anchor) return;
+      else if (scope === "range") { const ch = rangeChunks(q, anchor); ch.forEach((w, i) => calls.push({ key: ch.length === 1 ? qid : `${qid}~${i}`, qid, input: withDateFilter(base, q.date_field, w), scope })); }
+      else if (scope === "window") {
+        const w = PERIODS[period].win(anchor);
+        calls.push({ key: `${qid}@cur`, qid, input: withDateFilter(base, q.date_field, w.cur), scope, window: "cur" });
+        calls.push({ key: `${qid}@cmp`, qid, input: withDateFilter(base, q.date_field, w.cmp), scope, window: "cmp" });
+      }
+    });
+    return calls;
+  }
+  // Connector calls go out a few at a time: claude.ai and the OWOX server reject a burst of
+  // twenty parallel calls from one viewer, and a dashboard is many calls.
+  const MAX_IN_FLIGHT = CFG.max_parallel_queries || 4;
+  const queue = []; let inFlight = 0;
+  // A failure usually means the connector path is briefly overloaded: every queued call sent at that
+  // moment would fail too. So after a failure the queue pauses, then goes on two at a time, and widens
+  // again after a few answers. A read that failed that way is sent once more, later.
+  let limit = MAX_IN_FLIGHT, pauseUntil = 0, okStreak = 0, pumpTimer = null;
+  const SOFT = /^(upstream_error|server_unavailable|rate_limited)$/;
+  function pump() {
+    const wait = pauseUntil - Date.now();
+    if (wait > 0) { clearTimeout(pumpTimer); pumpTimer = setTimeout(pump, wait); return; }
+    while (inFlight < limit && queue.length) {
+      const w = queue.shift(); if (w.cancelled) continue;
+      inFlight += 1; w.waiting = true; w.startedAt = Date.now();
+      w.unsub = mcp.watchTool(SERVER, TOOL, w.input, (ev) => {
+        if (w.cancelled) return;
+        if (w.waiting) { w.waiting = false; inFlight -= 1; }
+        if (ev.type === "error" && (ev.error.retryable || SOFT.test(ev.error.code))) {
+          okStreak = 0; limit = Math.min(limit, 2);
+          pauseUntil = Math.max(pauseUntil, Date.now() + Math.max(4000, ev.error.retryAfterMs || 0));
+          if (!w.retried) {
+            w.retried = true; w.unsub();
+            setTimeout(() => { if (!w.cancelled) { queue.push(w); pump(); } }, 5000 + Math.random() * 3000);
+            setTimeout(pump, 0);
+            return;
+          }
+        } else if (ev.type === "data") {
+          okStreak += 1; if (okStreak >= 4 && limit < MAX_IN_FLIGHT) { limit += 1; okStreak = 0; }
+        }
+        setTimeout(pump, 0);
+        onEvent(w, ev);
+      }, { cache: { staleTime: 120000, gcTime: 3600000 } });
+    }
+  }
+  // Re-send only the calls that failed (the "Retry" link), through the same queue.
+  function retryFailed() {
+    const failed = [...watches].filter(([, w]) => store[w.key] && store[w.key].error);
+    if (!failed.length) return;
+    startRun("retry", failed.map(([, w]) => w));
+    failed.forEach(([k, w]) => { if (w.unsub) w.unsub(); Object.assign(w, { cancelled: false, retried: false, waiting: false }); store[w.key] = Object.assign({}, store[w.key], { loading: true }); queue.push(w); });
+    pump(); renderAll();
+  }
+  function cancelWatch(k, w) { w.cancelled = true; if (w.unsub) w.unsub(); if (w.waiting) { w.waiting = false; inFlight -= 1; } watches.delete(k); }
+  // ---------- the viewer's own copy of the last load (browser storage, this viewer only) ----------
+  // Opening the page shows that copy while it is younger than cache_hours; only Refresh data (or a call the copy
+  // does not hold, such as a new period) reads OWOX again. Nothing here is shared with other viewers.
+  const CACHE_HOURS = CFG.cache_hours == null ? 12 : +CFG.cache_hours;
+  const CACHE_KEY = `owox-dashboard:${PROJECT.id}:${CFG.title}`;
+  let copy = null, copySaveTimer = null, servedFromCopy = false;
+  function loadCopy() {
+    if (!CACHE_HOURS) return null;
+    try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); return c && c.entries && Date.now() - c.savedAt < CACHE_HOURS * 3600e3 ? c : null; } catch (_) { return null; }
+  }
+  function saveCopy() {
+    if (!CACHE_HOURS) return;
+    clearTimeout(copySaveTimer);
+    copySaveTimer = setTimeout(() => {
+      try {
+        const entries = {};
+        for (const w of watches.values()) { const st = store[w.key]; if (st && st.table && !st.error) entries[w.key + "|" + JSON.stringify(w.input)] = { table: st.table, at: st.at }; }
+        if (!Object.keys(entries).length) return;
+        const prev = loadCopy();
+        copy = { savedAt: prev && servedFromCopy ? prev.savedAt : Date.now(), entries: Object.assign({}, prev && prev.entries, entries), ai: Object.assign({}, prev && prev.ai, Object.fromEntries(Object.entries(ai).filter(([, v]) => v.status === "done").map(([k, v]) => [k, { sig: v.sig, data: v.data }]))) };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(copy));
+      } catch (_) { /* storage full or blocked: the page works without it */ }
+    }, 1500);
+  }
+  function clearCopy() { copy = null; servedFromCopy = false; try { localStorage.removeItem(CACHE_KEY); } catch (_) {} }
+  function syncWatches(trigger, force) {
+    if (!mcp) return;
+    if (force) clearCopy();
+    const calls = plannedCalls();
+    // Calls the viewer's copy already holds are answered from it, without a query.
+    const held = copy || (copy = loadCopy());
+    if (held && !force) {
+      let used = 0;
+      calls.forEach((c) => { const wk = c.key + "|" + JSON.stringify(c.input); const e = held.entries[wk]; if (e && !watches.has(wk)) { watches.set(wk, Object.assign({ fromCopy: true, unsub: () => {}, cancelled: false }, c)); store[c.key] = { table: e.table, error: null, at: e.at, loading: false }; used += 1; } });
+      if (used) { servedFromCopy = true; Object.entries(held.ai || {}).forEach(([k, v]) => { if (v && v.sig && aiOf(k).status !== "done") ai[k] = { sig: v.sig, status: "done", data: v.data, code: null }; }); }
+      if (used && CFG.anchor && calls.some((c) => c.qid === CFG.anchor.query)) { const before = anchor; computeAnchor(); if (anchor && anchor !== before) { syncWatches(trigger); return; } }
+    }
+    const wanted = new Set(calls.map((c) => c.key + "|" + JSON.stringify(c.input)));
+    for (const [k, w] of [...watches]) if (force || !wanted.has(k)) cancelWatch(k, w);
+    const fresh = calls.filter((c) => !watches.has(c.key + "|" + JSON.stringify(c.input)));
+    // Calls that start while a run is still collecting answers belong to that run.
+    if (fresh.length) { if (run && !run.written && !force) fresh.forEach((c) => run.expected.add(c.key)); else startRun(trigger, fresh); }
+    fresh.forEach((c) => {
+      const wk = c.key + "|" + JSON.stringify(c.input);
+      store[c.key] = Object.assign({}, store[c.key], { loading: true });
+      const w = Object.assign({ unsub: null, cancelled: false, retried: false }, c);
+      watches.set(wk, w); queue.push(w);
+    });
+    // Count this load's runs only after they are marked as loading, so the counter starts at 0.
+    if (fresh.length) beginCycle(fresh.map((c) => c.key));
+    pump();
+    renderAll();
+  }
+  function onEvent(c, ev) {
+    if (ev.type === "data") setTimeout(saveCopy, 0);
+    if (ev.type === "data") {
+      store[c.key] = { table: toTable(ev.result.payload), error: null, at: ev.result.cache ? ev.result.cache.storedAt : Date.now(), loading: false };
+    } else {
+      const prev = store[c.key] || {};
+      const transient = ev.error.retryable || ev.error.code === "server_unavailable" || ev.error.code === "upstream_error";
+      store[c.key] = { table: transient ? prev.table : null, error: ev.error, at: prev.at, loading: false };
+    }
+    if (CFG.anchor && c.qid === CFG.anchor.query) { const before = anchor; computeAnchor(); if (anchor && anchor !== before) syncWatches(before ? "anchor" : "open"); }
+    noteCall(c, ev);
+    renderAll();
+  }
+  function computeAnchor() {
+    if (!CFG.anchor) return;
+    const t = store[CFG.anchor.query] && store[CFG.anchor.query].table;
+    if (!t || !t.rows.length) return;
+    const field = CFG.anchor.value || CFG.anchor.date_field;
+    let max = null;
+    t.rows.forEach((r) => { const d = toDay(r[field]); if (d && (!max || d > max)) max = d; });
+    if (!max) return;
+    // The last complete day: a day equal to (or after) today is still being written.
+    const today = D.today();
+    anchor = max >= today ? D.add(today, -1) : max;
+  }
+  const tableOf = (key) => store[key] && store[key].table;
+  const errorOf = (keys) => keys.map((k) => store[k] && store[k].error).find(Boolean) || null;
+  const loadingOf = (keys) => keys.some((k) => !store[k] || store[k].loading);
+
+  // ---------- metric math ----------
+  function seriesRows(m) {
+    const s = m.series; if (!s) return null;
+    const tables = chunkKeys(s.query).map(tableOf); if (tables.some((t) => !t)) return null;
+    return tables.flatMap((t) => t.rows).map((r) => ({ day: toDay(r[s.date]), v: r[s.value] == null ? null : Number(r[s.value]) })).filter((r) => r.day);
+  }
+  const sumIn = (rows, w) => rows.reduce((acc, r) => (r.day >= w[0] && r.day <= w[1] && isNum(r.v) ? acc + r.v : acc), 0);
+  function monthly(m) {
+    const rows = seriesRows(m); if (!rows) return null;
+    const by = {};
+    // The first loaded month of a daily range is usually partial: leave it out of monthly views.
+    const from = anchor && m.kind !== "ratio" ? rangeOf(anchor)[0] : null;
+    const skip = from && from.slice(8) !== "01" ? D.monthKey(from) : null;
+    rows.forEach((r) => { const k = D.monthKey(r.day); if (!isNum(r.v) || k === skip) return; if (m.kind === "ratio") by[k] = r.v; else by[k] = (by[k] || 0) + r.v; });
+    return by;
+  }
+  // Plan rows: one per day (default) or per month. A ratio's plan is a ratio of planned sums
+  // (numerator ÷ denominator, each a list of fields; "-field" subtracts), never a sum or mean of daily rates.
+  function planRows(m) {
+    if (!m.plan) return null;
+    const t = tableOf(m.plan.query); if (!t) return null;
+    const sum = (r, list) => (list || []).reduce((a, f) => { const neg = f.startsWith("-"); const v = Number(r[neg ? f.slice(1) : f]); return isNum(v) ? a + (neg ? -v : v) : a; }, 0);
+    return t.rows.map((r) => {
+      const day = toDay(r[m.plan.date]); if (!day) return null;
+      if (m.plan.numerator) return { day, num: sum(r, m.plan.numerator), den: sum(r, m.plan.denominator) };
+      const v = Number(r[m.plan.value]); return isNum(v) ? { day, num: v, den: 1 } : null;
+    }).filter(Boolean);
+  }
+  const planValue = (m, num, den, n) => m.plan.numerator ? (den ? num / den : null) : (m.kind === "ratio" ? (n ? num / n : null) : num);
+  function planMonths(m) {
+    const rows = planRows(m); if (!rows) return null;
+    const acc = {};
+    rows.forEach((r) => { const k = D.monthKey(r.day); const a = acc[k] || (acc[k] = { num: 0, den: 0, n: 0 }); a.num += r.num; a.den += r.den; a.n += 1; });
+    const by = {}; Object.entries(acc).forEach(([k, a]) => { const v = planValue(m, a.num, a.den, a.n); if (isNum(v)) by[k] = v; });
+    return by;
+  }
+  // A period's plan: daily plans summed over its days; monthly plans pro-rated by the days inside the period.
+  function planFor(m, w) {
+    const rows = planRows(m); if (!rows || !rows.length) return null;
+    let num = 0, den = 0, n = 0;
+    if ((m.plan.grain || "day") === "day") {
+      rows.forEach((r) => { if (r.day >= w[0] && r.day <= w[1]) { num += r.num; den += r.den; n += 1; } });
+      return n ? planValue(m, num, den, n) : null;
+    }
+    rows.forEach((r) => {
+      const y = D.year(r.day), mo = D.month(r.day), s0 = D.ymd(y, mo, 1), s1 = D.ymd(y, mo, 31);
+      const a = s0 > w[0] ? s0 : w[0], b = s1 < w[1] ? s1 : w[1]; if (a > b) return;
+      const f = (D.diff(a, b) + 1) / D.dim(y, mo); num += r.num * f; den += r.den * f; n += f;
+    });
+    return n ? planValue(m, num, den, n) : null;
+  }
+  function windowValue(m, which) {
+    if (m.static) {
+      if (which !== "cur") return null;
+      const t = tableOf(m.static.query); if (!t) return null;
+      if (t.rows.length === 1 && t.rows[0][m.static.value] != null) return Number(t.rows[0][m.static.value]);
+      const tot = t.totals[m.static.value]; return isNum(tot) ? tot : null;
+    }
+    if (m.window) {
+      const t = tableOf(`${m.window.query}@${which}`); if (!t) return null;
+      if (t.rows.length === 1 && t.rows[0][m.window.value] != null) return Number(t.rows[0][m.window.value]);
+      const tot = t.totals[m.window.value]; return isNum(tot) ? tot : (t.rows.length ? null : 0);
+    }
+    if (m.kind === "ratio") return null;
+    const rows = seriesRows(m); if (!rows || !anchor) return null;
+    return sumIn(rows, PERIODS[period].win(anchor)[which]);
+  }
+  function metricKeys(m) {
+    const keys = [];
+    if (m.static) keys.push(m.static.query);
+    if (m.series) keys.push(...chunkKeys(m.series.query));
+    if (m.window) keys.push(`${m.window.query}@cur`, `${m.window.query}@cmp`);
+    if (m.plan) keys.push(m.plan.query);
+    return keys;
+  }
+  function forecast(m) {
+    if (m.kind === "ratio" || !anchor) return null;
+    const rows = seriesRows(m); if (!rows) return null;
+    if (period === "ytd") {
+      const w = PERIODS.ytd.win(anchor);
+      const ytd = sumIn(rows, w.cur), ytdLy = sumIn(rows, w.cmp);
+      const rest = sumIn(rows, [D.add(w.cmp[1], 1), `${D.year(anchor) - 1}-12-31`]);
+      if (!ytdLy) return null;
+      return { value: ytd + rest * (ytd / ytdLy), label: `Full-year forecast ${D.year(anchor)}` };
+    }
+    if (period === "mtd") {
+      const s = anchor.slice(0, 8) + "01", days = D.diff(s, anchor) + 1, dim = D.dim(D.year(anchor), D.month(anchor));
+      return { value: sumIn(rows, [s, anchor]) / days * dim, label: `${fmtMonth(anchor)} forecast` };
+    }
+    return null;
+  }
+  function evaluate(id) {
+    const m = METRICS[id]; if (!m) return null;
+    const w = anchor ? PERIODS[period].win(anchor) : null;
+    const fact = windowValue(m, "cur"), cmp = windowValue(m, "cmp");
+    const plan = w ? planFor(m, w.cur) : null;
+    const target = m.target && isNum(m.target.value) ? m.target.value : null;
+    const fc = forecast(m);
+    const up = (m.direction || "up") !== "down";
+    let ref = null, refKind = "comparison";
+    if (isNum(plan)) { ref = plan; refKind = "plan"; }
+    else if (isNum(target) && (m.target.horizon || "period") === "period") { ref = target; refKind = "target"; }
+    else if (isNum(cmp)) { ref = cmp; }
+    let status = "idle";
+    if (isNum(fact) && isNum(ref) && ref !== 0) {
+      const ratio = up ? fact / ref : ref / Math.max(fact, 1e-12);
+      status = ratio >= 1 ? "ok" : ratio >= 0.8 ? "warn" : "bad";
+    } else if (isNum(fact) && isNum(ref)) status = (up ? fact >= ref : fact <= ref) ? "ok" : "bad";
+    const change = isNum(fact) && isNum(cmp) ? fact - cmp : null;
+    const changePct = isNum(change) && cmp ? change / Math.abs(cmp) : null;
+    const good = isNum(change) ? (change === 0 ? null : (change > 0) === up) : null;
+    let gap = null;
+    if (isNum(target)) gap = (m.target.horizon === "year") ? (fc ? target - fc.value : null) : target - fact;
+    return { m, fact, cmp, plan, variance: isNum(plan) && isNum(fact) ? fact - plan : null, target, gap, fc, ref, refKind, status, change, changePct, good, up, w };
+  }
+
+  // ---------- shared UI pieces ----------
+  function help(lines) {
+    const h = el("span", "help");
+    const b = el("button", "help__btn", "i"); b.type = "button"; b.setAttribute("aria-label", "About this number");
+    const pop = el("span", "help__pop"); pop.setAttribute("role", "tooltip");
+    lines.filter(Boolean).forEach((t) => pop.append(el("p", null, t)));
+    h.append(b, pop); return h;
+  }
+  function martUrl(id, field) {
+    const base = `${APP}/ui/${encodeURIComponent(PROJECT.id)}/data-marts/${encodeURIComponent(id)}/data-setup`;
+    return field ? `${base}?field=${encodeURIComponent(field)}` : base;
+  }
+  // "Source": which Data Marts and fields a block is built on. Collapsed: business readers rarely need it.
+  function sourceBlock(sources, logKeys, title, description, tags) {
+    const d = el("details", "src");
+    const sm = el("summary"); sm.append(document.createTextNode("Source")); d.append(sm);
+    if (description) d.append(el("p", "src__text", description));
+    // What each kind of number on the block is, said once, inside Source.
+    const KIND = { "Fact": "the value OWOX returned from the Data Mart", "Estimate": "a forecast the page projects from OWOX values, such as month to date ÷ days elapsed × days in the month", "AI calc": "arithmetic done in the page on OWOX values: sums over days, changes, shares", "Hypothesis": "an explanation to check, not a measured number" };
+    if (tags && tags.length) { const ul = el("ul", "src__kinds"); tags.forEach((t) => { const li = el("li"); li.append(el("span", "tag", t), document.createTextNode(KIND[t] || "")); ul.append(li); }); d.append(ul); }
+    const grid = el("div", "src__grid");
+    (sources || []).forEach((s) => {
+      const box = el("div");
+      box.append(el("p", "src__role", s.role || "Fact"));
+      if (s.data_mart_id) {
+        const a = el("a", "src__mart", s.title || s.data_mart_id); a.href = martUrl(s.data_mart_id); a.target = "_blank"; a.rel = "noopener"; a.title = s.title || "";
+        box.append(a);
+        if (s.via) box.append(el("p", "src__via", s.via));
+        if (s.fields && s.fields.length) {
+          const ul = el("ul");
+          s.fields.forEach((f) => { const li = el("li"); const fa = el("a", null, f.label || f.name); fa.href = martUrl(s.data_mart_id, f.name); fa.target = "_blank"; fa.rel = "noopener"; fa.title = `${f.label || f.name} (${f.name})`; li.append(fa); ul.append(li); });
+          box.append(ul);
+        }
+      }
+      if (s.text) box.append(el("p", "src__text", s.text));
+      grid.append(box);
+    });
+    d.append(grid);
+    if (logKeys && logKeys.length) {
+      const b = el("button", "linkbtn", "Log of the run behind this block →"); b.type = "button";
+      b.addEventListener("click", () => openLog(logKeys, title));
+      d.append(b);
+    }
+    return d;
+  }
+  function errorCopy(err) {
+    switch (err.code) {
+      case "needs_reauth": return `Reconnect ${SERVER} in claude.ai Settings → Connectors, then refresh.`;
+      case "server_not_connected": return `Add the ${SERVER} connector in claude.ai Settings → Connectors and sign in to the ${PROJECT.title || "OWOX"} project to see this data.`;
+      case "selection_required": return `You have more than one connector named ${SERVER}. Choose which one this page should use when claude.ai asks.`;
+      case "not_in_manifest": return `${SERVER} is turned off for this page. Turn it on in the page's Permissions menu.`;
+      case "approval_required": return `This page needs your approval to read ${SERVER}. In claude.ai Settings → Connectors, set query_data_mart to "Always allow".`;
+      case "blocked_by_policy": return "Your organization's policy blocks this OWOX query for your account.";
+      case "server_unavailable": return "Not updated: OWOX did not answer in time.";
+      case "upstream_error": return "Not updated: OWOX did not answer this time.";
+      case "tool_error": {
+        let code = null, msg = err.message || "";
+        try { const j = JSON.parse(msg); code = j.error_code || (j.error && j.error.code) || null; msg = j.message || (j.error && j.error.message) || msg; } catch (_) { /* plain text */ }
+        if (code === "permission_denied") return `Your ${SERVER} connector cannot read this Data Mart. It may be signed in to another OWOX project (this page reads "${PROJECT.title}"), or your project role has no access to it: ask the project's Data Owner.`;
+        return "OWOX refused the query: " + String(msg).slice(0, 240);
+      }
+      case "not_granted": case "capability_disabled": case "capability_removed": return "Live data is not available in this view. Open the page in claude.ai.";
+      default: return `The query did not complete (${err.code}). ${err.message || ""}`;
+    }
+  }
+  function failNote(err) {
+    if (!SOFT.test(err.code) && !err.retryable) return el("p", "state state--bad", errorCopy(err));
+    const p = el("p", "soft", errorCopy(err)); const b = el("button", null, "Retry"); b.type = "button"; b.addEventListener("click", retryFailed); p.append(b); return p;
+  }
+  function stateBox(keys, emptyText) {
+    const err = errorOf(keys);
+    if (err) return failNote(err);
+    return el("p", "loading", emptyText || "Loading from OWOX…");
+  }
+  function block(c, titleText, opts) {
+    const span = c.span ? `span-${c.span}` : "span-6";
+    const art = el("article", `block ${span}`); art.id = `c-${c.id}`;
+    const head = el("p", "block__head");
+    head.append(el("span", "mono-label block__title", titleText));
+    if (exportable(c)) head.append(exportButton(c));
+    if (opts && opts.help) head.append(help(opts.help));
+    art.append(head);
+    const body = el("div", "block__body"); art.append(body);
+    const xp = exportPanel(c); if (xp) body.append(xp);
+    return { art, body };
+  }
+  function footer(body, c, keys) {
+    body.append(sourceBlock(c.sources || (c.metric && METRICS[c.metric] && METRICS[c.metric].sources), keys, c.title, c.description, c.tags));
+  }
+
+  // ---------- charts ----------
+  // A chart's drawing width follows its block's span, so text keeps one size across blocks.
+  const chartWidth = (c) => ({ 2: 380, 3: 560, 4: 760 })[c.span] || 1120;
+  function niceMax(v) { if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+  function tooltip(host) { const tip = el("div", "tip"); tip.hidden = true; host.append(tip); return {
+    show(evt, lines) { tip.replaceChildren(...lines.map((l) => el("div", null, l))); tip.hidden = false; const r = host.getBoundingClientRect(); const left = Math.min(Math.max(0, evt.clientX - r.left + 12), Math.max(0, r.width - tip.offsetWidth)); tip.style.left = left + "px"; tip.style.top = Math.max(0, evt.clientY - r.top - tip.offsetHeight - 10) + "px"; },
+    hide() { tip.hidden = true; } }; }
+  function sparkline(m, ev) {
+    const box = el("div", "spark");
+    const by = monthly(m); if (!by || !anchor) return box;
+    const keys = Object.keys(by).sort().filter((k) => k <= D.monthKey(anchor));
+    if (keys.length < 2) return box;
+    const pm = planMonths(m) || {};
+    const vals = keys.map((k) => by[k]);
+    const plans = keys.map((k) => isNum(pm[k]) ? pm[k] : null);
+    const lo = Math.min(0, ...vals, ...plans.filter(isNum)), hi = Math.max(...vals, ...plans.filter(isNum));
+    const W = 240, H = 34, x = (i) => (i / (keys.length - 1)) * W, y = (v) => H - 2 - ((v - lo) / ((hi - lo) || 1)) * (H - 4);
+    // The colour says where the line itself is heading: the last three full months against the three before,
+    // green when that is the good direction for the metric, red when not, grey when it moved under 1%.
+    const lastFull = anchor === D.ymd(D.year(anchor), D.month(anchor), 31) ? D.monthKey(anchor) : keys[keys.length - 2];
+    const fullVals = keys.filter((k) => k <= lastFull).map((k) => by[k]).filter(isNum);
+    const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    let color = "var(--text-muted)";
+    if (fullVals.length >= 6) {
+      const recent = avg(fullVals.slice(-3)), before = avg(fullVals.slice(-6, -3));
+      const move = before ? (recent - before) / Math.abs(before) : 0;
+      if (Math.abs(move) >= 0.01) color = ((move > 0) === ev.up) ? "var(--ok)" : "var(--bad)";
+    }
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", "aria-hidden": "true" });
+    if (plans.some(isNum)) svg.append(svgEl("path", { d: plans.map((v, i) => v == null ? "" : `${i && plans[i - 1] != null ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""), fill: "none", stroke: "var(--plan)", "stroke-width": 1, "stroke-dasharray": "3 3", "vector-effect": "non-scaling-stroke" }));
+    const fullKeys = keys.length - (D.monthKey(anchor) === lastFull ? 0 : 1);
+    svg.append(svgEl("path", { d: vals.slice(0, fullKeys).map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""), fill: "none", stroke: color, "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" }));
+    if (fullKeys < keys.length) { const i = keys.length - 1; svg.append(svgEl("circle", { cx: x(i), cy: y(vals[i]), r: 2.5, fill: "var(--bg-surface)", stroke: color, "stroke-width": 1.2 })); }
+    box.append(svg); return box;
+  }
+
+  // Plan vs fact by month: bars for the fact (absolute metrics), lines for ratios; plan dashed; last year muted.
+  function planVsFactChart(host, c) {
+    const m = METRICS[c.metric]; const ev = evaluate(c.metric);
+    const by = monthly(m), pm = planMonths(m) || {};
+    if (!by || !anchor) { host.append(stateBox(metricKeys(m))); return; }
+    const y = D.year(anchor), months = Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, "0")}`);
+    const ly = (k) => `${y - 1}${k.slice(4)}`;
+    const curKey = D.monthKey(anchor);
+    const ratio = m.kind === "ratio";
+    const cumulative = c.mode === "cumulative" && !ratio;
+    let fact = months.map((k) => k <= curKey && isNum(by[k]) ? by[k] : null);
+    let prior = months.map((k) => isNum(by[ly(k)]) ? by[ly(k)] : null);
+    let plan = months.map((k) => isNum(pm[k]) ? pm[k] : null);
+    const target = ev && isNum(ev.target) && m.target.horizon === "year" ? ev.target : null;
+    let pace = null;
+    if (cumulative) {
+      const cum = (arr) => { let a = 0, seen = false; return arr.map((v) => { if (v == null) return seen ? null : null; seen = true; a += v; return a; }); };
+      fact = cum(fact); prior = cum(prior); plan = plan.some(isNum) ? cum(plan.map((v) => v || 0)) : plan;
+      if (!plan.some(isNum) && target) pace = months.map((k, i) => target * (i + 1) / 12);
+    }
+    // Month forecast for the running month (bars) or the full-year path (cumulative).
+    const mtdDays = D.diff(curKey + "-01", anchor) + 1, dimCur = D.dim(y, D.month(anchor));
+    const curIdx = D.month(anchor) - 1;
+    const monthFc = !ratio && isNum(by[curKey]) && mtdDays < dimCur ? by[curKey] / mtdDays * dimCur : null;
+    const fy = cumulative ? forecastYear(m) : null;
+    const all = [...fact, ...prior, ...plan, ...(pace || []), monthFc, fy].filter(isNum);
+    const yMax = niceMax(Math.max(...all, 0) * 1.05);
+    const W = chartWidth(c), H = 260, L = 56, R = 10, T = 12, B = 26;
+    const band = (W - L - R) / 12, xc = (i) => L + band * (i + 0.5), yv = (v) => T + (1 - v / yMax) * (H - T - B);
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${c.title || m.label}: fact ${fmt(ev && ev.fact, m.format)} against plan ${fmt(ev && ev.plan, m.format)}` });
+    for (let i = 0; i <= 4; i++) { const v = yMax * i / 4; svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(v), y2: yv(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: yv(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v, m.format, true); svg.append(t); }
+    months.forEach((k, i) => { const t = svgEl("text", { x: xc(i), y: H - 8, "text-anchor": "middle" }); t.textContent = fmtMonth(k + "-01"); svg.append(t); });
+    const line = (arr, attrs) => svg.append(svgEl("path", Object.assign({ d: arr.map((v, i) => v == null ? "" : `${i && arr[i - 1] != null ? "L" : "M"}${xc(i).toFixed(1)},${yv(v).toFixed(1)}`).join(""), fill: "none" }, attrs)));
+    if (!cumulative && !ratio) {
+      const bw = Math.min(26, band * 0.36);
+      months.forEach((k, i) => {
+        if (isNum(prior[i])) svg.append(svgEl("rect", { x: xc(i) - bw - 1, y: yv(prior[i]), width: bw, height: yv(0) - yv(prior[i]), fill: "var(--prior)" }));
+        if (i === curIdx && isNum(monthFc)) svg.append(svgEl("rect", { x: xc(i) + 1, y: yv(monthFc), width: bw, height: yv(0) - yv(monthFc), fill: "none", stroke: "var(--metric)", "stroke-dasharray": "3 2" }));
+        if (isNum(fact[i])) svg.append(svgEl("rect", { x: xc(i) + 1, y: yv(fact[i]), width: bw, height: yv(0) - yv(fact[i]), fill: "var(--metric)" }));
+      });
+      if (plan.some(isNum)) plan.forEach((v, i) => { if (isNum(v)) svg.append(svgEl("line", { x1: xc(i) - band * 0.45, x2: xc(i) + band * 0.45, y1: yv(v), y2: yv(v), stroke: "var(--plan)", "stroke-width": 2, "stroke-dasharray": "5 3" })); });
+    } else {
+      line(prior, { stroke: "var(--prior)", "stroke-width": 1.5 });
+      if (plan.some(isNum)) line(plan, { stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "6 4" });
+      if (pace) line(pace, { stroke: "var(--plan)", "stroke-width": 1.2, "stroke-dasharray": "2 4" });
+      if (ratio && isNum(ev && ev.target)) svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(ev.target), y2: yv(ev.target), stroke: "var(--plan)", "stroke-dasharray": "6 4" }));
+      line(fact, { stroke: "var(--metric)", "stroke-width": 2.4 });
+      if (isNum(fy) && isNum(fact[curIdx])) svg.append(svgEl("path", { d: `M${xc(curIdx)},${yv(fact[curIdx])}L${xc(11)},${yv(fy)}`, stroke: "var(--metric)", "stroke-width": 1.5, "stroke-dasharray": "4 4", fill: "none" }));
+      fact.forEach((v, i) => { if (isNum(v)) svg.append(svgEl("circle", { cx: xc(i), cy: yv(v), r: i === curIdx ? 3.5 : 2.2, fill: i === curIdx ? "var(--bg-surface)" : "var(--metric)", stroke: "var(--metric)", "stroke-width": 1.5 })); });
+    }
+    const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" }); svg.append(hit);
+    host.append(svg);
+    const tip = tooltip(host);
+    hit.addEventListener("pointermove", (e) => {
+      const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(11, Math.floor((px - L) / band)));
+      const lines = [fmtMonth(months[i] + "-01") + " " + y, `Fact ${fmt(fact[i], m.format)}${i === curIdx && D.diff(curKey + "-01", anchor) + 1 < dimCur ? " (to " + fmtDay(anchor, { year: undefined }) + ")" : ""}`];
+      if (plan.some(isNum)) lines.push(`Plan ${fmt(plan[i], m.format)}`);
+      if (pace) lines.push(`Pace to target ${fmt(pace[i], m.format)}`);
+      lines.push(`${y - 1} ${fmt(prior[i], m.format)}`);
+      if (i === curIdx && isNum(monthFc)) lines.push(`Month forecast ${fmt(monthFc, m.format)}`);
+      tip.show(e, lines);
+    });
+    hit.addEventListener("pointerleave", () => tip.hide());
+  }
+  function forecastYear(m) {
+    const rows = seriesRows(m); if (!rows || !anchor) return null;
+    const w = PERIODS.ytd.win(anchor); const ytd = sumIn(rows, w.cur), ytdLy = sumIn(rows, w.cmp);
+    const rest = sumIn(rows, [D.add(w.cmp[1], 1), `${D.year(anchor) - 1}-12-31`]);
+    return ytdLy ? ytd + rest * (ytd / ytdLy) : null;
+  }
+
+  // Monthly line over the whole loaded range (ratios), with the target.
+  function trendChart(host, c) {
+    const m = METRICS[c.metric]; const ev = evaluate(c.metric);
+    const by = monthly(m);
+    if (!by || !anchor) { host.append(stateBox(metricKeys(m))); return; }
+    const keys = Object.keys(by).sort().filter((k) => k <= D.monthKey(anchor));
+    if (!keys.length) { host.append(el("p", "empty", "No rows for this range.")); return; }
+    const vals = keys.map((k) => by[k]); const tgt = ev && isNum(ev.target) ? ev.target : null;
+    const pm = planMonths(m) || {}; const plans = keys.map((k) => isNum(pm[k]) ? pm[k] : null);
+    // A ratio's line is read for its movement: the axis spans the values, the plan and the target, not zero.
+    const span = [...vals, ...plans, ...(isNum(tgt) ? [tgt] : [])].filter(isNum);
+    let lo = Math.min(...span), hi = Math.max(...span); const pad = (hi - lo || Math.abs(hi) || 1) * 0.15; lo = Math.max(0, lo - pad); hi = hi + pad;
+    const W = chartWidth(c), H = 230, L = 56, R = 10, T = 12, B = 26;
+    const x = (i) => L + (keys.length === 1 ? 0.5 : i / (keys.length - 1)) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${c.title || m.label} by month` });
+    for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4; svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v, m.format, true); svg.append(t); }
+    keys.forEach((k, i) => { if (k.endsWith("-01") || i === 0) { const t = svgEl("text", { x: x(i), y: H - 8, "text-anchor": "middle" }); t.textContent = k.endsWith("-01") ? k.slice(0, 4) : fmtMonth(k + "-01"); svg.append(t); } });
+    if (isNum(tgt)) svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(tgt), y2: y(tgt), stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "6 4" }));
+    if (plans.some(isNum)) svg.append(svgEl("path", { d: plans.map((v, i) => v == null ? "" : `${i && plans[i - 1] != null ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""), fill: "none", stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "6 4" }));
+    const curPartial = anchor !== D.ymd(D.year(anchor), D.month(anchor), 31);
+    const full = curPartial ? keys.length - 1 : keys.length;
+    svg.append(svgEl("path", { d: vals.slice(0, full).map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""), fill: "none", stroke: "var(--metric)", "stroke-width": 2.2 }));
+    if (curPartial && full >= 1) svg.append(svgEl("path", { d: `M${x(full - 1)},${y(vals[full - 1])}L${x(full)},${y(vals[full])}`, stroke: "var(--metric)", "stroke-dasharray": "3 3", fill: "none" }));
+    vals.forEach((v, i) => svg.append(svgEl("circle", { cx: x(i), cy: y(v), r: i === keys.length - 1 && curPartial ? 3.5 : 2, fill: i === keys.length - 1 && curPartial ? "var(--bg-surface)" : "var(--metric)", stroke: "var(--metric)" })));
+    const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" }); svg.append(hit); host.append(svg);
+    const tip = tooltip(host);
+    hit.addEventListener("pointermove", (e) => { const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(keys.length - 1, Math.round(((px - L) / (W - L - R)) * (keys.length - 1)))); const ln = [`${fmtMonth(keys[i] + "-01")} ${keys[i].slice(0, 4)}${i === keys.length - 1 && curPartial ? " (to date)" : ""}`, `${m.label} ${fmt(vals[i], m.format)}`]; if (isNum(plans[i])) ln.push(`Plan ${fmt(plans[i], m.format)}`); if (isNum(tgt)) ln.push(`Target ${fmt(tgt, m.format)}`); tip.show(e, ln); });
+    hit.addEventListener("pointerleave", () => tip.hide());
+  }
+
+  // ---------- breakdowns ----------
+  const UNATTRIBUTED = "Unattributed";
+  const isStatic = (qid) => ((QUERIES[qid] || {}).scope || "static") === "static";
+  const bdKeys = (c) => isStatic(c.query) ? [c.query] : [`${c.query}@cur`, `${c.query}@cmp`];
+  function breakdownData(c) {
+    const q = c.query, snap = isStatic(q);
+    const cur = snap ? tableOf(q) : tableOf(`${q}@cur`), cmp = snap ? { rows: [], totals: {} } : tableOf(`${q}@cmp`);
+    if (!cur || !cmp) return null;
+    const map = new Map();
+    const add = (t, which) => t.rows.forEach((r) => { const k = r[c.dimension] == null || r[c.dimension] === "" ? UNATTRIBUTED : String(r[c.dimension]); const o = map.get(k) || { key: k, cur: 0, cmp: 0 }; const v = Number(r[c.value]); if (isNum(v)) o[which] += v; if (c.target_value && which === "cur" && r[c.target_value] != null) o.target = Number(r[c.target_value]); map.set(k, o); });
+    add(cur, "cur"); add(cmp, "cmp");
+    const rows = [...map.values()].map((o) => Object.assign(o, { delta: o.cur - o.cmp, pct: o.cmp ? (o.cur - o.cmp) / Math.abs(o.cmp) : null }));
+    const totCur = isNum(cur.totals[c.value]) ? cur.totals[c.value] : rows.reduce((a, r) => a + r.cur, 0);
+    const totCmp = isNum(cmp.totals[c.value]) ? cmp.totals[c.value] : rows.reduce((a, r) => a + r.cmp, 0);
+    rows.forEach((r) => { r.share = totCur ? r.cur / totCur : null; if (snap) { r.cmp = null; r.delta = null; r.pct = null; } });
+    rows.sort((a, b) => b.cur - a.cur);
+    return { rows, totCur, totCmp: snap ? null : totCmp, truncated: cur.truncated || cmp.truncated, snap };
+  }
+  function breakdownChart(host, c) {
+    const keys = bdKeys(c);
+    const data = breakdownData(c); const m = METRICS[c.metric] || { format: c.format };
+    if (!data) { host.append(stateBox(keys)); return; }
+    if (!data.rows.length) { host.append(el("p", "empty", "No rows in this period.")); return; }
+    const rows = data.rows.slice(0, c.top || 8);
+    const up = (m.direction || "up") !== "down";
+    const lg = el("div", "legend"); const a = el("span"); a.append(el("i"), document.createTextNode(data.snap ? "Current" : "This period")); lg.append(a);
+    if (!data.snap) { const b = el("span"); b.append(el("i", "prior"), document.createTextNode("Comparison")); lg.append(b); }
+    if (data.rows.some((r) => isNum(r.target))) { const t0 = el("span"); t0.append(el("i", "plan"), document.createTextNode("Target")); lg.append(t0); }
+    host.append(lg);
+    const W = chartWidth(c), rowH = 30, L = 150, R = 120, T = 4, H = T + rows.length * rowH + 4;
+    const max = niceMax(Math.max(...rows.map((r) => Math.max(r.cur, r.cmp || 0, isNum(r.target) ? r.target : 0)), 0));
+    const x = (v) => L + (Math.max(0, v) / max) * (W - L - R);
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${c.title} by ${c.dimension_label || c.dimension}` });
+    rows.forEach((r, i) => {
+      const yy = T + i * rowH;
+      const lab = svgEl("text", { x: 0, y: yy + 18 }); lab.textContent = r.key.length > 22 ? r.key.slice(0, 21) + "…" : r.key; lab.setAttribute("style", "fill: var(--text-secondary)"); svg.append(lab);
+      svg.append(svgEl("rect", { x: L, y: yy + 5, width: Math.max(1, x(r.cmp) - L), height: 7, fill: "var(--prior)" }));
+      svg.append(svgEl("rect", { x: L, y: yy + 13, width: Math.max(1, x(r.cur) - L), height: 11, fill: "var(--metric)" }));
+      if (isNum(r.target)) svg.append(svgEl("line", { x1: x(r.target), x2: x(r.target), y1: yy + 2, y2: yy + 27, stroke: "var(--plan)", "stroke-width": 2, "stroke-dasharray": "3 2" }));
+      const v = svgEl("text", { x: W - R + 8, y: yy + 22 }); v.textContent = fmt(r.cur, m.format, true); v.setAttribute("style", "fill: var(--text-primary)"); svg.append(v);
+      const d = svgEl("text", { x: W, y: yy + 22, "text-anchor": "end" }); d.textContent = fmtPct(r.pct); const good = r.delta === 0 ? null : (r.delta > 0) === up; d.setAttribute("style", `fill: ${good == null ? "var(--text-muted)" : good ? "var(--ok)" : "var(--bad)"}`); svg.append(d);
+      const hit = svgEl("rect", { x: 0, y: yy, width: W, height: rowH, fill: "transparent" }); hit.dataset.i = i; svg.append(hit);
+    });
+    host.append(svg);
+    const tip = tooltip(host);
+    svg.addEventListener("pointermove", (e) => { const i = e.target.dataset && e.target.dataset.i; if (i == null) return tip.hide(); const r = rows[+i]; tip.show(e, [r.key, `This period ${fmt(r.cur, m.format)}`, `Comparison ${fmt(r.cmp, m.format)}`, `Change ${fmtDelta(r.delta, m.format)} (${fmtPct(r.pct)})`].concat(isNum(r.target) ? [`Target ${fmt(r.target, m.format)}`] : [])); });
+    svg.addEventListener("pointerleave", () => tip.hide());
+    if (data.truncated) host.append(el("p", "state state--warn", "OWOX returned only part of the rows: raise the query limit or narrow it."));
+  }
+  function waterfallChart(host, c) {
+    const src = COMPONENTS[c.from]; const keys = bdKeys(src);
+    const data = breakdownData(src); const m = METRICS[src.metric] || { format: src.format };
+    if (!data) { host.append(stateBox(keys)); return; }
+    if (data.snap) { host.append(el("p", "empty", "A change by value needs a date field to compare two periods.")); return; }
+    if (src.ratio) { host.append(el("p", "empty", "A rate does not add up across values, so it has no bridge.")); return; }
+    const top = c.top || 6;
+    const sorted = [...data.rows].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    const steps = sorted.slice(0, top).map((r) => ({ label: r.key, v: r.delta }));
+    const rest = sorted.slice(top).reduce((a, r) => a + r.delta, 0);
+    if (sorted.length > top) steps.push({ label: "Other", v: rest });
+    const bars = [{ label: "Comparison", v: data.totCmp, total: true }, ...steps, { label: "This period", v: data.totCur, total: true }];
+    let run = 0; const segs = bars.map((b) => { if (b.total) { run = b.v; return { ...b, y0: 0, y1: b.v }; } const y0 = run; run += b.v; return { ...b, y0, y1: run }; });
+    const yMax = niceMax(Math.max(...segs.map((s) => Math.max(s.y0, s.y1))) * 1.05);
+    const W = chartWidth(c), H = 260, L = 56, R = 10, T = 12, B = 40, band = (W - L - R) / segs.length;
+    const yv = (v) => T + (1 - v / yMax) * (H - T - B);
+    const up = (m.direction || "up") !== "down";
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${c.title}: from ${fmt(data.totCmp, m.format)} to ${fmt(data.totCur, m.format)}` });
+    for (let i = 0; i <= 4; i++) { const v = yMax * i / 4; svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(v), y2: yv(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: yv(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v, m.format, true); svg.append(t); }
+    segs.forEach((s, i) => {
+      const x0 = L + band * i + band * 0.15, w = band * 0.7;
+      const top = yv(Math.max(s.y0, s.y1)), h = Math.max(1, Math.abs(yv(s.y0) - yv(s.y1)));
+      const fill = s.total ? "var(--metric)" : ((s.v >= 0) === up ? "var(--ok)" : "var(--bad)");
+      svg.append(svgEl("rect", { x: x0, y: top, width: w, height: h, fill, opacity: s.total ? 1 : 0.85 }));
+      const t = svgEl("text", { x: x0 + w / 2, y: top - 4, "text-anchor": "middle" }); t.textContent = s.total ? fmt(s.v, m.format, true) : fmtDelta(s.v, m.format); svg.append(t);
+      const lab = svgEl("text", { x: x0 + w / 2, y: H - 22, "text-anchor": "middle" }); lab.textContent = s.label.length > 11 ? s.label.slice(0, 10) + "…" : s.label; svg.append(lab);
+    });
+    host.append(svg);
+  }
+
+  // Top drivers: the dimension values that moved the metric most, in its own unit.
+  function driverList(c) {
+    const out = [];
+    (c.from || []).forEach((bid) => {
+      const b = COMPONENTS[bid]; if (!b || b.ratio) return; const data = breakdownData(b); if (!data || data.snap) return;
+      const totalChange = data.totCur - data.totCmp;
+      data.rows.forEach((r) => { if (r.delta) out.push(Object.assign({}, r, { b, totalChange, totCur: data.totCur, totCmp: data.totCmp })); });
+    });
+    return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, c.top || 5);
+  }
+  // Recommendations and hypotheses for the drivers on screen: Claude writes them from the same numbers, once per
+  // period and data load, on the viewer's own Claude usage. They change whenever the drivers change; nothing is stored.
+  let sampleFn = null;
+  let ai = {};   // per drivers block: { sig, status, data, code }
+  const aiOf = (id) => ai[id] || { sig: null, status: "idle", data: {}, code: null };
+  function moversText() {
+    return Object.values(COMPONENTS).filter((b) => b.type === "breakdown").map((b) => {
+      const data = breakdownData(b); if (!data) return null;
+      const bm = METRICS[b.metric] || { format: b.format, label: b.title };
+      const rows = [...data.rows].sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta)).slice(0, 8)
+        .map((r) => `  ${r.key}: ${fmt(r.cur, bm.format)} vs ${fmt(r.cmp, bm.format)} (${fmtPct(r.pct)})`).join("\n");
+      return `${b.title} (${bm.label}, by ${b.dimension_label || b.dimension}):\n${rows}`;
+    }).filter(Boolean).join("\n\n");
+  }
+  function kpiText() {
+    return Object.keys(METRICS).map((id) => { const e = evaluate(id); return e && isNum(e.fact) ? `${e.m.label}: ${fmt(e.fact, e.m.format)} (${fmtPct(e.changePct)} vs comparison${isNum(e.plan) ? `; plan ${fmt(e.plan, e.m.format)}, ${fmtPct(e.variance / Math.abs(e.plan || 1))} vs plan` : ""})` : null; }).filter(Boolean).join("\n");
+  }
+  function askForDrivers(c, list, w) {
+    if (!sampleFn || c.ask_claude === false || CFG.ask_claude === false) return;
+    const sig = [period, anchor, ...list.map((d) => `${d.b.id}:${d.key}:${Math.round(d.delta)}`)].join("|");
+    if (aiOf(c.id).sig === sig) return;
+    ai[c.id] = { sig, status: "loading", data: {}, code: null };
+    const ids = list.map((d, i) => `${c.code || "TOP"}-${i + 1}`);
+    const lines = list.map((d, i) => { const m = METRICS[d.b.metric] || { format: d.b.format, label: d.b.title }; return `${ids[i]}: ${m.label} from ${d.key} (${d.b.dimension_label || d.b.dimension}) ${fmt(d.cmp, m.format)} → ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}); the total changed by ${fmtDelta(d.totalChange, m.format)}.`; }).join("\n");
+    const prompt = [
+      `You are the data partner of the business behind the OWOX project "${PROJECT.title}". ${CFG.lede || ""}`,
+      `Period: ${winLabel(w.cur)}, compared with ${winLabel(w.cmp)}.`,
+      `The drivers to explain:\n${lines}`,
+      `Headline numbers for the same period:\n${kpiText()}`,
+      `Biggest moves in each breakdown on the page:\n${moversText()}`,
+      `For every driver write exactly two recommendations ("do") and exactly two hypotheses to check ("check"). Each item is one plain sentence under 22 words, specific to that driver and these numbers. Use only the numbers above; never invent a number, a campaign or a cause you cannot point to in them; when the numbers cannot tell, make the check the query that would. Answer JSON only: {"drivers":[{"id":"${ids[0]}","do":["…","…"],"check":["…","…"]}, …]} with the ids ${ids.join(", ")}.`,
+    ].join("\n\n");
+    sampleFn.json(prompt).then((v) => {
+      if (aiOf(c.id).sig !== sig) return;
+      const data = {}; ((v && v.drivers) || []).forEach((x) => { if (x && x.id) data[x.id] = { do: (x.do || []).slice(0, 2).map(String), check: (x.check || []).slice(0, 2).map(String) }; });
+      ai[c.id] = { sig, status: "done", data, code: null }; renderAll(); setTimeout(saveCopy, 0);
+    }).catch((e) => { if (aiOf(c.id).sig !== sig) return; ai[c.id] = { sig, status: "error", data: {}, code: e && e.code }; renderAll(); });
+  }
+  // "Dig deeper": copies a ready prompt for a Claude chat with the OWOX connector, which can query further.
+  const DIG_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 15l5.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  function digPrompt(c, d, m, w, id) {
+    const srcs = (d.b.sources || []).filter((x) => x.data_mart_id).map((x) => `${x.title} (${martUrl(x.data_mart_id)})${x.via ? ", " + x.via : ""}`).join("; ");
+    return [
+      `Using my OWOX Data Marts connector (project "${PROJECT.title}"), dig into this finding from the dashboard "${CFG.title}":`,
+      `${id}: ${m.label} from ${d.key} (${d.b.dimension_label || d.b.dimension}) went from ${fmt(d.cmp, m.format)} to ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}) in ${winLabel(w.cur)} against ${winLabel(w.cmp)}; data through ${fmtDay(anchor)}.`,
+      `Data Marts behind it: ${srcs || "see the block's Source"}.`,
+      "Re-query the same two periods. Split the change into volume, rate and value where the data allows. Go one dimension deeper (channel, category, country, segment or device, whichever the data model joins), and rank the drivers until at least 80% of the change is explained. Confirm or reject each hypothesis with numbers. Separate facts, estimates and hypotheses, and invent no metrics.",
+    ].join("\n\n");
+  }
+  function digDeeper(c, d, m, w, id) {
+    const box = el("span", "xport");
+    const b = el("button", "xport__btn dig"); b.type = "button"; b.setAttribute("aria-label", "Copy a prompt to dig deeper"); b.innerHTML = DIG_ICON;
+    const tip = el("span", "xport__tip", "Copy a prompt to dig deeper");
+    b.addEventListener("click", async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const text = digPrompt(c, d, m, w, id);
+      try { await navigator.clipboard.writeText(text); tip.textContent = "Copied: paste it into a Claude chat"; }
+      catch (_) { const ta = el("textarea"); ta.value = text; ta.className = "dig__fallback"; box.closest("details").querySelector(".ins__body").prepend(ta); ta.select(); tip.textContent = "Select and copy the prompt below"; }
+      setTimeout(() => { tip.textContent = "Copy a prompt to dig deeper"; }, 4000);
+    });
+    box.append(b, tip);
+    return box;
+  }
+  function driversBlock(host, c) {
+    const keys = (c.from || []).flatMap((bid) => COMPONENTS[bid] ? [`${COMPONENTS[bid].query}@cur`, `${COMPONENTS[bid].query}@cmp`] : []);
+    const list = driverList(c);
+    if (!list.length) { host.append(loadingOf(keys) || errorOf(keys) ? stateBox(keys) : el("p", "empty", "Nothing moved in this period.")); return; }
+    const w = PERIODS[period].win(anchor);
+    if (!loadingOf(keys)) askForDrivers(c, list, w);
+    const bar = el("div", "drivers__bar");
+    const openAll = el("button", "linkbtn", "Expand all"); openAll.type = "button";
+    const closeAll = el("button", "linkbtn", "Collapse all"); closeAll.type = "button";
+    bar.append(openAll, closeAll);
+    const wrap = el("div", "drivers"); host.append(bar, wrap);
+    const pctFmt = (v) => nf({ maximumFractionDigits: 0 }).format(Math.abs(v) * 100) + "%";
+    list.forEach((d, i) => {
+      const id = `${c.code || "TOP"}-${i + 1}`;
+      const m = METRICS[d.b.metric] || { format: d.b.format, label: d.b.title };
+      const up = (m.direction || "up") !== "down";
+      const good = (d.delta > 0) === up;
+      const verb = d.delta > 0 ? "rose" : "fell";
+      const dimLabel = d.b.dimension_label || "";
+      const shareOfChange = d.totalChange ? d.delta / d.totalChange : null;
+      const det = el("details", "ins " + (good ? "ins--ok" : "ins--bad"));
+      const sum = el("summary");
+      sum.append(el("span", "ins__id", id));
+      sum.append(el("p", "ins__title", `${(m.short || m.label)} from ${d.key}${dimLabel ? " (" + dimLabel.toLowerCase() + ")" : ""} ${verb} ${d.pct == null ? "from zero" : pctFmt(d.pct)}`));
+      sum.append(el("span", "ins__impact " + (good ? "up-good" : "down-bad"), fmtDelta(d.delta, m.format)));
+      sum.append(el("span", "mono", isNum(shareOfChange) ? `${pctFmt(shareOfChange)} of change` : ""));
+      sum.append(digDeeper(c, d, m, w, id));
+      det.append(sum);
+      const body = el("div", "ins__body");
+      const sec = (h, tag, content) => { const s0 = el("div"); const hh = el("h4"); hh.append(el("span", "tag", tag), document.createTextNode(h)); s0.append(hh); s0.append(content); return s0; };
+      body.append(sec("What happened", "Fact", el("p", null, `${m.label} from ${d.key} was ${fmt(d.cur, m.format)} in ${winLabel(w.cur)}, against ${fmt(d.cmp, m.format)} in ${winLabel(w.cmp)}.`)));
+      // Why it matters: the move's share of the period's change, then where the metric stands against plan and the year.
+      const why = [];
+      const P = CFG.primary_metric && METRICS[CFG.primary_metric];
+      const isPrimary = P && d.b.metric === CFG.primary_metric;
+      if (d.totalChange) why.push(`${d.key} ${Math.sign(d.delta) === Math.sign(d.totalChange) ? "is" : "offsets"} ${pctFmt(shareOfChange)} of the ${fmtDelta(d.totalChange, m.format)} change in ${m.label.toLowerCase()}${isPrimary ? ", the project's key metric" : ""}.`);
+      // In the key metric's unit only where the config gives an unambiguous formula (change × named metrics).
+      if (P && !isPrimary && m.to_primary && m.to_primary.multiply) {
+        const facts = m.to_primary.multiply.map((x) => { const e = evaluate(x); return e && isNum(e.fact) ? { v: e.fact, label: e.m.label } : null; });
+        if (facts.every(Boolean)) { const est = facts.reduce((acc, f) => acc * f.v, d.delta); why.push(`About ${fmtDelta(est, P.format)} of ${P.label.toLowerCase()} (change × ${facts.map((f) => f.label.toLowerCase()).join(" × ")}).`); }
+      }
+      const mid = d.b.metric && METRICS[d.b.metric] ? d.b.metric : null;
+      const ev = mid ? evaluate(mid) : null;
+      if (ev && isNum(ev.plan) && ev.plan) why.push(`${m.label} is ${fmtPct(ev.variance / Math.abs(ev.plan))} vs plan for the period (${fmtDelta(ev.variance, m.format)}).`);
+      if (ev && m.plan && m.kind !== "ratio" && anchor) {
+        const y = D.year(anchor), yearPlan = planFor(m, [`${y}-01-01`, `${y}-12-31`]), fy = forecastYear(m);
+        if (isNum(yearPlan) && isNum(fy)) why.push(`Full-year forecast ${fmt(fy, m.format, true)} against the ${y} plan of ${fmt(yearPlan, m.format, true)}: ${fmtDelta(fy - yearPlan, m.format)}.`);
+      }
+      body.append(sec("Why it matters", "Estimate", el("p", null, why.join(" ") || `${d.key} moved by ${fmtDelta(d.delta, m.format)}.`)));
+      const pb = (c.playbook && c.playbook[d.b.id] && c.playbook[d.b.id][d.delta > 0 ? "up" : "down"]) || null;
+      const A = aiOf(c.id);
+      const rec = A.status === "done" && A.data[id] ? A.data[id] : pb;
+      const list2 = (items) => { const ul = el("ul"); items.forEach((t) => ul.append(el("li", null, t))); return ul; };
+      const pending = (txt) => el("p", "loading", txt);
+      const aiNote = A.status === "loading" ? pending("Claude is writing them from these numbers…")
+        : A.status === "error" ? el("p", "desc", A.code === "not_granted" ? "Allow Claude for this page to get recommendations." : `Claude did not answer (${A.code || "error"}). Press Refresh data to try again.`)
+        : !sampleFn ? el("p", "desc", "Recommendations need Claude, which this view does not offer.")
+        : A.status === "done" ? el("p", "desc", "Claude gave none for this one. Press Refresh data to ask again.") : pending("Waiting for the data…");
+      body.append(sec("What to do", "Hypothesis", rec && rec.do && rec.do.length ? list2(rec.do) : aiNote));
+      body.append(sec("What to check", "Hypothesis", rec && rec.check && rec.check.length ? list2(rec.check) : aiNote.cloneNode(true)));
+      if (A.status === "done" && A.data[id]) body.append(el("p", "desc", `Written by Claude for ${winLabel(w.cur)} from the numbers on this page; rewritten when the data or the period changes.`));
+      det.append(body); wrap.append(det);
+    });
+    openAll.addEventListener("click", () => wrap.querySelectorAll("details").forEach((x) => (x.open = true)));
+    closeAll.addEventListener("click", () => wrap.querySelectorAll("details").forEach((x) => (x.open = false)));
+  }
+  const sortState = {};
+  function tableBlock(host, c) {
+    const src = COMPONENTS[c.from]; const keys = bdKeys(src);
+    const data = breakdownData(src); const m = METRICS[src.metric] || { format: src.format };
+    if (!data) { host.append(stateBox(keys)); return; }
+    const up = (m.direction || "up") !== "down";
+    const cols = [["key", src.dimension_label || "Value"], ["cur", "This period"], ["cmp", "Comparison"], ["delta", "Change"], ["pct", "Change %"], ["share", "Share"]];
+    const st = sortState[c.id] || { by: "cur", dir: -1 };
+    const rows = [...data.rows].sort((a, b) => { const x = a[st.by], y = b[st.by]; if (typeof x === "string") return st.dir * String(x).localeCompare(String(y)); return st.dir * ((x ?? -Infinity) - (y ?? -Infinity)); });
+    const wrap = el("div", "table-wrap"), t = el("table"), thead = el("thead"), tr = el("tr");
+    cols.forEach(([k, label]) => { const th = el("th", null, label + (st.by === k ? (st.dir < 0 ? " ↓" : " ↑") : "")); th.addEventListener("click", () => { sortState[c.id] = { by: k, dir: st.by === k ? -st.dir : -1 }; renderAll(); }); tr.append(th); });
+    thead.append(tr); t.append(thead);
+    const tb = el("tbody");
+    rows.forEach((r) => { const row = el("tr"); row.append(el("td", null, r.key)); row.append(el("td", "num", fmt(r.cur, m.format))); row.append(el("td", "num", fmt(r.cmp, m.format))); const good = r.delta === 0 ? null : (r.delta > 0) === up; row.append(el("td", "num " + (good == null ? "" : good ? "up-good" : "down-bad"), arrow(r.delta) + fmtDelta(r.delta, m.format))); row.append(el("td", "num", fmtPct(r.pct))); row.append(el("td", "num", r.share == null ? "—" : nf({ style: "percent", maximumFractionDigits: 1 }).format(r.share))); tb.append(row); });
+    const tot = el("tr"); tot.append(el("td", null, "Total")); tot.append(el("td", "num", fmt(data.totCur, m.format))); tot.append(el("td", "num", fmt(data.totCmp, m.format))); tot.append(el("td", "num", data.snap ? "—" : fmtDelta(data.totCur - data.totCmp, m.format))); tot.append(el("td", "num", data.snap ? "—" : fmtPct(data.totCmp ? (data.totCur - data.totCmp) / Math.abs(data.totCmp) : null))); tot.append(el("td", "num", "100%")); tb.append(tot);
+    t.append(tb); wrap.append(t); host.append(wrap);
+  }
+
+  // ---------- scorecards ----------
+  function scorecard(id) {
+    const ev = evaluate(id); const m = ev.m;
+    const card = el("article", "card card--" + ev.status); card.id = `card-${id}`;
+    const row = el("div", "card__row");
+    const name = el("h2", "card__name", m.short && m.label.length > 18 ? m.short : m.label);
+    const firstKey = metricKeys(m)[0]; const upd = firstKey && tableOf(firstKey) && tableOf(firstKey).updated;
+    name.append(help([m.about, upd ? `Source tables updated ${fmtStamp(upd)}` : null]));
+    const statusText = { ok: ev.refKind === "comparison" ? "Ahead" : "On track", warn: "Slightly behind", bad: "Behind", idle: m.static ? "No comparison" : "Not measurable" }[ev.status];
+    const st = el("span", "status status--" + ev.status); st.append(el("i"), document.createTextNode(isNum(ev.fact) ? statusText : (loadingOf(metricKeys(m)) ? "Loading" : statusText)));
+    row.append(st);
+    // The card exports like a chart: the metric's series, its period values and its plan.
+    const xc = { id: `card-${id}`, type: "trend", metric: id, title: m.label };
+    if (exportable(xc)) row.append(exportButton(xc));
+    card.append(row, name);
+    const xp = exportPanel(xc); if (xp) card.append(xp);
+    const err = errorOf(metricKeys(m));
+    const big = isNum(ev.fact) && Math.abs(ev.fact) >= 1e6;
+    const factEl = el("p", "card__fact", isNum(ev.fact) ? (big ? nf({ notation: "compact", maximumFractionDigits: 2, ...(m.format === "currency" ? { style: "currency", currency: CURRENCY } : {}) }).format(ev.fact) : fmt(ev.fact, m.format)) : "—");
+    if (big) factEl.title = fmt(ev.fact, m.format);
+    card.append(factEl);
+    const ch = el("p", "card__change " + (ev.good == null ? "flat" : ev.good ? "up-good" : "down-bad"));
+    ch.textContent = isNum(ev.change) ? `${arrow(ev.change)}${fmtPct(ev.changePct)} · ${fmtDelta(ev.change, m.format)}` : "—";
+    if (isNum(ev.change)) ch.title = `vs ${PERIODS[period].win(anchor).cmpLabel}`;
+    card.append(ch);
+    const lines = el("ul", "card__lines");
+    const li = (k, v) => { const l = el("li"); l.append(el("em", null, k + " "), document.createTextNode(v)); lines.append(l); };
+    if (m.plan) li("Plan", isNum(ev.plan) ? `${fmt(ev.plan, m.format, true)} · ${fmtDelta(ev.variance, m.format)}` : "no plan data");
+    if (isNum(ev.target)) li(m.target.horizon === "year" ? "Year target" : "Target", `${fmt(ev.target, m.format)}${isNum(ev.gap) && m.target.horizon === "year" ? " · gap " + fmtDelta(ev.gap, m.format) : ""}`);
+    if (ev.fc) li(ev.fc.label, fmt(ev.fc.value, m.format));
+    card.append(sparkline(m, ev));
+    if (lines.childNodes.length) card.append(lines);
+    if (err) card.append(failNote(err));
+    card.append(sourceBlock(m.sources, metricKeys(m), m.label));
+    return card;
+  }
+
+  // ---------- summary (templated from the same numbers) ----------
+  function renderSummary() {
+    const box = $("summary"); const ids = CFG.summary_metrics || [];
+    if (!ids.length || !anchor) { box.hidden = true; return; }
+    const p = el("p");
+    const cls = (good) => good == null ? null : good ? "up-good" : "down-bad";
+    const evs = ids.map((id) => evaluate(id)).filter((e) => e && isNum(e.fact));
+    evs.forEach((e, i) => {
+      const m = e.m;
+      if (i) p.append(document.createTextNode(" · "));
+      p.append(document.createTextNode(`${m.short || m.label} `), el("b", null, fmt(e.fact, m.format, true)));
+      if (isNum(e.changePct)) p.append(document.createTextNode(" "), el("span", cls(e.good), fmtPct(e.changePct)));
+      if (isNum(e.plan) && e.plan) { const good = e.up ? e.variance >= 0 : e.variance <= 0; p.append(document.createTextNode(", "), el("span", cls(good), `${fmtPct(e.variance / Math.abs(e.plan))} vs plan`)); }
+      else if (isNum(e.target) && (m.target.horizon || "period") === "period") { const good = e.up ? e.fact >= e.target : e.fact <= e.target; p.append(document.createTextNode(", "), el("span", cls(good), `${good ? "meets" : "misses"} ${fmt(e.target, m.format)}`)); }
+    });
+    if (!evs.length) { box.hidden = true; return; }
+    box.replaceChildren(p);
+    box.hidden = false;
+  }
+
+  // ---------- the Data tab: where each tab's numbers come from, how fresh they are, what to add ----------
+  function dataBlock(c) {
+    const { art, body } = block(c, c.title || "Data");
+    if (CFG.lede) body.append(el("p", "desc", CFG.lede));
+    const h = (t) => el("p", "mono-label data__h", t);
+    // Data Marts per tab, from the Source of every block on it.
+    body.append(h("Where each tab's numbers come from"));
+    const t1 = el("table"); const hr = el("tr"); ["Tab", "Data Marts"].forEach((x) => hr.append(el("th", null, x))); const th1 = el("thead"); th1.append(hr); t1.append(th1);
+    const tb1 = el("tbody");
+    PAGES.forEach((p) => {
+      const marts = new Map();
+      const add = (list) => (list || []).forEach((x) => x.data_mart_id && marts.set(x.data_mart_id, x.title || x.data_mart_id));
+      (p.components || []).forEach((k) => { add(k.sources); if (k.metric && METRICS[k.metric]) add(METRICS[k.metric].sources); (k.metrics || []).forEach((mid) => METRICS[mid] && add(METRICS[mid].sources)); if (k.from) [].concat(k.from).forEach((b) => COMPONENTS[b] && add(COMPONENTS[b].sources)); });
+      if (!marts.size) return;
+      const tr = el("tr"); tr.append(el("td", null, p.title)); const td = el("td");
+      [...marts].forEach(([id, title], i) => { if (i) td.append(document.createTextNode(" · ")); const a = el("a", null, title); a.href = martUrl(id); a.target = "_blank"; a.rel = "noopener"; td.append(a); });
+      tr.append(td); tb1.append(tr);
+    });
+    t1.append(tb1); const w1 = el("div", "table-wrap"); w1.append(t1); body.append(w1);
+    // Freshness of what has loaded so far (tabs not opened yet load on first visit).
+    const fresh = new Map();
+    Object.values(store).forEach((st) => { const t = st.table; if (t && t.mart && t.mart.title) { const prev = fresh.get(t.mart.title); if (!prev || (t.updated || "") > (prev.updated || "")) fresh.set(t.mart.title, { updated: t.updated, coverage: t.coverage, id: t.mart.id }); } });
+    if (fresh.size) {
+      body.append(h("Freshness: when the source tables were last written"));
+      const t2 = el("table"); const r2 = el("tr"); ["Data Mart", "Source tables updated"].forEach((x) => r2.append(el("th", null, x))); const th2 = el("thead"); th2.append(r2); t2.append(th2);
+      const tb2 = el("tbody");
+      [...fresh].sort((a, b) => a[0].localeCompare(b[0])).forEach(([title, f]) => { const tr = el("tr"); tr.append(el("td", null, title)); tr.append(el("td", "num", f.updated ? fmtStamp(f.updated) + (f.coverage === "partial" ? " (at least)" : "") : "not reported")); tb2.append(tr); });
+      t2.append(tb2); const w2 = el("div", "table-wrap"); w2.append(t2); body.append(w2);
+      body.append(el("p", "desc", "Data Marts on tabs you have not opened yet appear here once their tab loads."));
+    }
+    const notes = PAGES.flatMap((p) => p.components || []).filter((k) => k.type === "notes").flatMap((k) => k.items || []);
+    if (notes.length) { body.append(h("How these numbers are read")); const ol = el("ol", "notes"); notes.forEach((t) => ol.append(el("li", null, t))); body.append(ol); }
+    const more = CFG.improvements || [];
+    if (more.length) {
+      body.append(h("Get more from this dashboard"));
+      const ul = el("ul", "notes");
+      more.forEach((x) => { const li = el("li"); li.append(document.createTextNode(x.text || String(x))); if (x.data_mart_id) { const a = el("a", null, " Open in OWOX ↗"); a.href = martUrl(x.data_mart_id, x.field); a.target = "_blank"; a.rel = "noopener"; li.append(a); } ul.append(li); });
+      body.append(ul);
+    }
+    return art;
+  }
+
+  // ---------- page rendering ----------
+  let activePage = 0;
+  function renderComponent(c) {
+    if (c.type === "scorecards") {
+      const wrap = el("section", "cards span-6"); wrap.id = `c-${c.id}`; wrap.setAttribute("aria-label", c.title || "Key numbers");
+      (c.metrics || []).forEach((id) => METRICS[id] && wrap.append(scorecard(id)));
+      return wrap;
+    }
+    if (c.type === "notes") return null;
+    if (c.type === "data") return dataBlock(c);
+    if (c.type === "notes-inline") {
+      const { art, body } = block(c, c.title || "How these numbers are read");
+      const ol = el("ol", "notes"); (c.items || []).forEach((t) => ol.append(el("li", null, t))); body.append(ol);
+      if (c.sources) body.append(sourceBlock(c.sources, null, c.title));
+      return art;
+    }
+    const m = METRICS[c.metric] || (COMPONENTS[c.from] && METRICS[COMPONENTS[c.from].metric]);
+    const { art, body } = block(c, c.title || (m && m.label) || "", { help: m ? [m.about] : null });
+    const host = el("div", "chart");
+    let keys = [];
+    if (c.type === "plan_vs_fact") {
+      const lg = el("div", "legend"); const add = (cls, t) => { const s = el("span"); s.append(el("i", cls), document.createTextNode(t)); lg.append(s); };
+      const ratio = m.kind === "ratio"; const cum = c.mode === "cumulative" && !ratio;
+      add(ratio || cum ? "line" : "", `${anchor ? D.year(anchor) : "This year"} fact`); add("prior", `${anchor ? D.year(anchor) - 1 : "Last year"}`);
+      if (m.plan) add("plan", "Plan"); else if (m.target) add("plan", ratio ? "Target" : "Pace to target");
+      if (!ratio && !cum) add("fc", "Month forecast");
+      body.append(lg); planVsFactChart(host, c); keys = metricKeys(m);
+    } else if (c.type === "trend") { trendChart(host, c); keys = metricKeys(m); }
+    else if (c.type === "breakdown") { breakdownChart(host, c); keys = bdKeys(c); }
+    else if (c.type === "waterfall") { waterfallChart(host, c); const s = COMPONENTS[c.from]; keys = bdKeys(s); }
+    else if (c.type === "drivers") { driversBlock(host, c); keys = (c.from || []).flatMap((b) => COMPONENTS[b] ? [`${COMPONENTS[b].query}@cur`, `${COMPONENTS[b].query}@cmp`] : []); }
+    else if (c.type === "table") { tableBlock(host, c); const s = COMPONENTS[c.from]; keys = bdKeys(s); }
+    body.append(host);
+    const sources = c.sources || (c.type === "waterfall" || c.type === "table" ? COMPONENTS[c.from].sources : null) || (c.type === "drivers" ? (c.from || []).flatMap((b) => (COMPONENTS[b] && COMPONENTS[b].sources) || []) : null) || (m && m.sources);
+    footer(body, Object.assign({}, c, { sources }), keys);
+    return art;
+  }
+  function renderAll() {
+    const holder = $("pages");
+    // Keep open Source sections and insight cards open across re-renders.
+    const openIds = new Set([...holder.querySelectorAll("details[open]")].map((d) => d.closest("[id]") && d.closest("[id]").id + "|" + [...d.parentNode.children].indexOf(d)));
+    const scroll = window.scrollY;
+    holder.replaceChildren();
+    const p = PAGES[activePage]; if (!p) return;
+    const grid = el("div", "grid");
+    (p.components || []).forEach((c) => { try { const n = renderComponent(c); if (n) grid.append(n); } catch (e) { const { art, body } = block(c, c.title || c.type); body.append(el("p", "state state--bad", "This block could not be drawn: " + e.message)); grid.append(art); } });
+    holder.append(grid);
+    holder.querySelectorAll("details").forEach((d) => { const host = d.closest("[id]"); if (host && openIds.has(host.id + "|" + [...d.parentNode.children].indexOf(d))) d.open = true; });
+    window.scrollTo(0, scroll);
+    renderSummary(); renderHeader(); pageLevelState();
+  }
+  function renderHeader() {
+    const stamps = Object.values(store).map((s) => s.table && s.table.updated).filter(Boolean).sort();
+    const parts = [];
+    if (anchor) parts.push(`Data through ${fmtDay(anchor)}`);
+    if (stamps.length) parts.push(stamps[0] === stamps[stamps.length - 1] ? `source tables updated ${fmtStamp(stamps[0])}` : `source tables updated ${fmtStamp(stamps[0])} – ${fmtStamp(stamps[stamps.length - 1])}`);
+    if (anchor) { const w = PERIODS[period].win(anchor); parts.push(`${winLabel(w.cur)} vs ${winLabel(w.cmp)}`); }
+    if (servedFromCopy && copy) parts.unshift(`Your copy from ${fmtStamp(new Date(copy.savedAt).toISOString())}: Refresh data for live numbers`);
+    if (parts.length) $("asof").textContent = parts.join(" · ");
+    renderProgress();
+  }
+  // While queries are out: elapsed seconds and how many of this load's runs have answered.
+  let cycle = null, tick = null;
+  function beginCycle(keys) {
+    if (!cycle || cycle.done) cycle = { start: Date.now(), keys: new Set(), done: false };
+    keys.forEach((k) => cycle.keys.add(k));
+    if (!tick) tick = setInterval(renderProgress, 1000);
+    renderProgress();
+  }
+  function renderProgress() {
+    const el0 = $("progress"), btn = $("refresh");
+    if (!cycle) { el0.hidden = true; return; }
+    const keys = [...cycle.keys]; const answered = keys.filter((k) => store[k] && !store[k].loading).length;
+    const secs = Math.max(0, Math.round((Date.now() - cycle.start) / 1000));
+    if (answered >= keys.length) {
+      cycle.done = true; clearInterval(tick); tick = null;
+      el0.textContent = `Loaded in ${secs} s (${keys.length} runs)`; el0.hidden = false;
+      if (btn && mcp) { btn.disabled = false; btn.textContent = "Refresh data"; }
+      clearTimeout(renderProgress.hide); renderProgress.hide = setTimeout(() => { if (cycle && cycle.done) el0.hidden = true; }, 6000);
+      return;
+    }
+    el0.textContent = `${secs} s (${answered}/${keys.length} runs)`; el0.hidden = false;
+  }
+  function pageLevelState() {
+    const box = $("page-state");
+    const errs = Object.values(store).map((s) => s.error).filter(Boolean);
+    const all = Object.keys(store).length;
+    if (projectMismatch) { box.replaceChildren(el("span", null, projectMismatch)); box.className = "state state--bad"; box.hidden = false; return; }
+    if (all && errs.length === all && errs.every((e) => e.code === errs[0].code)) { box.replaceChildren(el("span", null, errorCopy(errs[0]))); box.className = "state state--bad"; box.hidden = false; }
+    else box.hidden = true;
+  }
+
+  // ---------- export to Google Sheets: the data behind a block becomes an OWOX Report ----------
+  // Each export is a real OWOX Report on a Google Sheets destination, run by the viewer's own connector. It stays
+  // in the project (it can be re-run or scheduled), and the next export of the same block updates it instead of
+  // creating another one. One spreadsheet per block; one sheet (tab) per query behind the block.
+  const XKEY = `owox-dashboard-export:${PROJECT.id}`;
+  const xstate = {};
+  const xread = () => { try { return JSON.parse(localStorage.getItem(XKEY) || "{}"); } catch (_) { return {}; } };
+  const xwrite = (v) => { try { localStorage.setItem(XKEY, JSON.stringify(v)); } catch (_) {} };
+  const SHEETS_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#0f9d58" d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path fill="#87ceac" d="M14.5 2v5.5H20z"/><path fill="#fff" d="M7 10.5h10v7.5H7zm1.4 1.4v1.6h3v-1.6zm4.2 0v1.6h3v-1.6zm-4.2 3v1.7h3v-1.7zm4.2 0v1.7h3v-1.7z"/></svg>';
+  const exportable = (c) => CFG.export !== false && c.export !== false && exportParts(c).length > 0;
+  // The queries behind a block, each with the exact filters the page uses for it now.
+  function exportParts(c) {
+    const out = []; const seen = new Set();
+    const addQ = (qid, which) => {
+      const q = QUERIES[qid]; if (!q) return; const scope = q.scope || "static";
+      if (scope !== "static" && !anchor) return;
+      const id = qid + (which ? "@" + which : ""); if (seen.has(id)) return; seen.add(id);
+      const base = Object.assign({}, q.input || {}); delete base.limit;
+      let input = base, label = q.label || qid;
+      if (scope === "range") input = withDateFilter(base, q.date_field, rangeOf(anchor));
+      if (scope === "window") { const w = PERIODS[period].win(anchor)[which]; input = withDateFilter(base, q.date_field, w); label += which === "cur" ? " · this period" : " · comparison"; }
+      out.push({ id, data_mart_id: q.data_mart_id, input, label });
+    };
+    const fromMetric = (mid) => { const m = METRICS[mid]; if (!m) return; if (m.static) addQ(m.static.query); if (m.series) addQ(m.series.query); if (m.window) { addQ(m.window.query, "cur"); addQ(m.window.query, "cmp"); } if (m.plan) addQ(m.plan.query); };
+    const fromBreakdown = (b) => { if (b && b.query) { if (isStatic(b.query)) addQ(b.query); else { addQ(b.query, "cur"); addQ(b.query, "cmp"); } } };
+    if (c.type === "plan_vs_fact" || c.type === "trend") fromMetric(c.metric);
+    else if (c.type === "breakdown") fromBreakdown(c);
+    else if (c.type === "waterfall" || c.type === "table") fromBreakdown(COMPONENTS[c.from]);
+    else if (c.type === "drivers") (c.from || []).forEach((b) => fromBreakdown(COMPONENTS[b]));
+    return out;
+  }
+  const sheetName = (s0) => String(s0).replace(/[\[\]*?/\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 90);
+  function exportButton(c) {
+    const box = el("span", "xport" + (xstate[c.id] && xstate[c.id].busy ? " xport--busy" : ""));
+    const b = el("button", "xport__btn"); b.type = "button"; b.setAttribute("aria-label", "Export to Google Sheets"); b.innerHTML = SHEETS_ICON;
+    b.addEventListener("click", () => startExport(c));
+    box.append(b, el("span", "xport__tip", "Export to Google Sheets"));
+    return box;
+  }
+  function exportPanel(c) {
+    const st = xstate[c.id]; if (!st) return null;
+    const p = el("div", "xpanel");
+    const closeBtn = (label) => { const x = el("button", "linkbtn", label || "Close"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); }); return x; };
+    if (st.connect) {
+      // Step 2 of connecting: the viewer finishes Google sign-in on the OWOX page, then comes back.
+      p.append(el("div", null, "Connect your Google account to OWOX: open the page below, sign in to Google and allow access. The destination is created as soon as you approve. Then come back and press Done."));
+      const row = el("div", "xpanel__row");
+      const a = el("a", null, "Open the OWOX page to connect Google Sheets ↗"); a.href = st.connect.url; a.target = "_blank"; a.rel = "noopener";
+      const done = el("button", "btn btn--sm", "Done, export now"); done.type = "button"; done.addEventListener("click", () => afterConnect(c));
+      row.append(a, done, closeBtn("Cancel")); p.append(row);
+      if (st.error) p.append(el("p", "state state--bad", st.error));
+      return p;
+    }
+    if (st.offerConnect) {
+      p.append(el("div", null, st.offerConnect));
+      const row = el("div", "xpanel__row");
+      const go = el("button", "btn btn--sm", "Connect Google Sheets"); go.type = "button"; go.addEventListener("click", () => connectSheets(c));
+      row.append(go, closeBtn("Cancel")); p.append(row);
+      return p;
+    }
+    if (st.choose) {
+      const row = el("div", "xpanel__row");
+      row.append(el("span", null, "Export to"));
+      const sel = el("select", "select"); st.choose.forEach((d) => { const o = el("option", null, d.connectedGoogleAccount ? `${d.name} · ${d.connectedGoogleAccount}` : d.name); o.value = d.id; sel.append(o); });
+      const nw = el("option", null, "Connect another Google account…"); nw.value = "__new"; sel.append(nw);
+      const go = el("button", "btn btn--sm", "Export"); go.type = "button";
+      go.addEventListener("click", () => { if (sel.value === "__new") { connectSheets(c); return; } const d = st.choose.find((x) => x.id === sel.value); const saved = xread(); saved.destination = d.id; xwrite(saved); runExport(c, d); });
+      const x = el("button", "linkbtn", "Cancel"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); });
+      row.append(sel, go, x); p.append(row);
+      return p;
+    }
+    p.append(el("div", null, st.title || ""));
+    if (st.steps && st.steps.length) { const ul = el("ul"); st.steps.forEach((t) => ul.append(el("li", null, t))); p.append(ul); }
+    if (st.link) { const a = el("a", null, "Open in Google Sheets ↗"); a.href = st.link; a.target = "_blank"; a.rel = "noopener"; p.append(a); }
+    if (st.error) p.append(el("p", "state state--bad", st.error));
+    if (!st.busy && st.denied) { const go = el("button", "btn btn--sm", "Connect my own Google Sheets"); go.type = "button"; go.addEventListener("click", () => connectSheets(c)); p.append(go); }
+    if (!st.busy) { const x = el("button", "linkbtn", "Close"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); }); p.append(x); }
+    return p;
+  }
+  async function call(tool, input) {
+    try { const r = await mcp.callTool(SERVER, tool, input, { cache: false }); return { ok: true, v: r.payload }; }
+    catch (e) { let body = null; try { body = JSON.parse(e.message); } catch (_) {} return { ok: false, e, body }; }
+  }
+  function exportError(r) {
+    const e = r.e || {}; const code = r.body && r.body.error_code;
+    if (e.code === "approval_required" || e.code === "not_in_manifest") return `Exporting needs your permission for OWOX report tools on this page: allow them when claude.ai asks, or set add_report and update_report to "Always allow" for ${SERVER} in claude.ai Settings → Connectors.`;
+    if (code === "permission_denied") return `Your ${SERVER} connector cannot export this Data Mart: your project role may have no access, or this Google Sheets destination is not shared with you.`;
+    return (r.body && r.body.message) || errorCopy(e);
+  }
+  async function startExport(c) {
+    if (!mcp || (xstate[c.id] && xstate[c.id].busy)) return;
+    xstate[c.id] = { busy: true, title: "Finding your Google Sheets destination…", steps: [] }; renderAll();
+    const r = await call("list_destinations", {});
+    if (!r.ok) { xstate[c.id] = { busy: false, error: exportError(r) }; renderAll(); return; }
+    const sheets = ((r.v && r.v.destinations) || []).filter((d) => d.type === "google_sheets" && d.connectedGoogleAccount);
+    xstate[c.id].known = ((r.v && r.v.destinations) || []).map((d) => d.id);
+    if (!sheets.length) { xstate[c.id] = { busy: false, known: xstate[c.id].known, offerConnect: "You have no Google Sheets destination in this OWOX project yet. Connect your Google account once, and every export goes to your own Drive." }; renderAll(); return; }
+    const saved = xread(); const pick = sheets.find((d) => d.id === saved.destination) || (sheets.length === 1 ? sheets[0] : null);
+    if (!pick) { xstate[c.id] = { busy: false, choose: sheets, known: xstate[c.id].known }; renderAll(); return; }
+    runExport(c, pick);
+  }
+  // No usable destination: OWOX gives a link to its "Connect Google Sheets" page; the viewer signs in to Google
+  // there, the destination appears, and the page picks the new one by comparing the list before and after.
+  async function connectSheets(c) {
+    const known = (xstate[c.id] && xstate[c.id].known) || [];
+    xstate[c.id] = { busy: true, title: "Asking OWOX for the Google connection page…", steps: [], known }; renderAll();
+    const r = await call("add_destination", { destination_type: "google_sheets" });
+    const url = r.ok && r.v && r.v.authorization_url;
+    if (!url) { xstate[c.id] = { busy: false, known, error: r.ok ? "OWOX did not return a connection page." : exportError(r) }; renderAll(); return; }
+    xstate[c.id] = { busy: false, known, connect: { url } }; renderAll();
+  }
+  async function afterConnect(c) {
+    const st = xstate[c.id]; const known = new Set(st.known || []);
+    st.error = null; renderAll();
+    const r = await call("list_destinations", {});
+    if (!r.ok) { st.error = exportError(r); renderAll(); return; }
+    const all = (r.v && r.v.destinations) || [];
+    const fresh = all.filter((d) => d.type === "google_sheets" && d.connectedGoogleAccount && !known.has(d.id));
+    if (!fresh.length) { st.error = "No new Google Sheets destination yet. Finish the Google sign-in on the OWOX page, then press Done again."; renderAll(); return; }
+    if (fresh.length > 1) { xstate[c.id] = { busy: false, choose: fresh, known: all.map((d) => d.id) }; renderAll(); return; }
+    const saved = xread(); saved.destination = fresh[0].id; xwrite(saved);
+    runExport(c, fresh[0]);
+  }
+  async function runExport(c, dest) {
+    const parts = exportParts(c);
+    const w = anchor ? PERIODS[period].win(anchor) : null;
+    const st = xstate[c.id] = { busy: true, title: `Exporting ${parts.length === 1 ? "1 table" : parts.length + " tables"} to Google Sheets (${dest.name})…`, steps: [] };
+    renderAll();
+    const saved = xread(); const key = `${c.id}:${dest.id}`; const mem = saved[key] || { reports: {} };
+    let spreadsheet = mem.spreadsheet_id || null, link = mem.sheet_url || null; const runs = [];
+    for (const part of parts) {
+      const name = sheetName(`${c.title || c.id} · ${part.label}`);
+      const controls = { fields: part.input.fields };
+      ["filters", "aggregations", "date_buckets", "sort", "slices"].forEach((k) => { if (part.input[k] && part.input[k].length) controls[k] = part.input[k]; });
+      let res = null, reportId = mem.reports[part.id];
+      if (reportId) {
+        res = await call("update_report", Object.assign({ report_id: reportId }, controls, { filters: controls.filters || [] }));
+        if (!res.ok && !(res.body && res.body.error_code === "permission_denied")) { reportId = null; }
+      }
+      if (!reportId) {
+        res = await call("add_report", Object.assign({ data_mart_id: part.data_mart_id, destination_id: dest.id, name }, controls, spreadsheet ? { spreadsheet_id: spreadsheet } : {}));
+        if (!res.ok && res.body && res.body.error_code === "similar_report_exists" && res.body.existing_report) {
+          reportId = res.body.existing_report.report_id;
+          res = await call("update_report", Object.assign({ report_id: reportId }, controls, { filters: controls.filters || [] }));
+        }
+      }
+      if (!res.ok) {
+        st.error = exportError(res); st.steps.push(`${part.label}: not exported`);
+        if (res.body && res.body.error_code === "permission_denied") { st.denied = true; const sv = xread(); delete sv.destination; xwrite(sv); break; }
+        renderAll(); continue;
+      }
+      const v = res.v || {}; reportId = v.report_id || reportId; mem.reports[part.id] = reportId;
+      spreadsheet = spreadsheet || v.spreadsheet_id || null; link = link || v.sheet_url || null; if (v.spreadsheet_id) mem.spreadsheet_id = v.spreadsheet_id; if (v.sheet_url && !mem.sheet_url) mem.sheet_url = v.sheet_url;
+      const outcome = v.initial_run || v.run || {};
+      let runId = outcome.status === "queued" ? outcome.run_id : null;
+      if (!runId && outcome.status === "not_requested") { const rr = await call("run_report", { report_id: reportId }); if (rr.ok && rr.v) runId = rr.v.run_id; }
+      st.steps.push(`${part.label}: ${runId ? "running…" : "saved"}`);
+      runs.push({ i: st.steps.length - 1, label: part.label, report_id: reportId, run_id: runId });
+      saved[key] = mem; xwrite(saved); renderAll();
+    }
+    st.link = link; renderAll();
+    // Follow each run to its end (OWOX report runs can take a minute or more).
+    const started = Date.now();
+    for (const r of runs.filter((x) => x.run_id)) {
+      let done = false;
+      while (!done && Date.now() - started < 6 * 60e3) {
+        await new Promise((ok) => setTimeout(ok, 5000));
+        const s1 = await call("get_report_run_status", { report_id: r.report_id, run_id: r.run_id });
+        if (!s1.ok) { st.steps[r.i] = `${r.label}: status unknown`; break; }
+        const v = s1.v || {};
+        if (!v.should_poll) { done = true; st.steps[r.i] = `${r.label}: ${v.status === "success" ? "done" : v.status + (v.error ? " · " + String(v.error).slice(0, 120) : "")}`; }
+        renderAll();
+      }
+    }
+    st.busy = false;
+    st.title = st.error ? "Export finished with problems." : `Exported${w ? " for " + winLabel(w.cur) : ""}. The reports stay in OWOX, so you can re-run or schedule them there.`;
+    renderAll();
+  }
+
+  // ---------- run log (shared through db: who refreshed, when, which exact queries) ----------
+  let db = null, me = null, userApi = null, run = null, local = [], shared = [];
+  function startRun(trigger, calls) {
+    if (run && !run.written) finishRun();
+    run = { trigger, startedAt: Date.now(), expected: new Set(calls.map((c) => c.key)), calls: {}, written: false };
+    clearTimeout(startRun.t); startRun.t = setTimeout(finishRun, 240000);
+  }
+  function noteCall(c, ev) {
+    if (!run || !run.expected.has(c.key)) return;
+    const q = QUERIES[c.qid];
+    const entry = { key: c.key, label: (q.label || c.qid) + (c.window ? ` · ${c.window === "cur" ? "this period" : "comparison"}` : ""), server: SERVER, tool: TOOL, input: JSON.stringify(c.input, null, 2), afterMs: Date.now() - run.startedAt, ms: c.startedAt ? Date.now() - c.startedAt : null, retried: !!c.retried };
+    if (ev.type === "data") { if (ev.result.cache && ev.result.cache.revalidating) return; const t = store[c.key].table; entry.status = ev.result.cache ? "cache" : "ok"; entry.rows = t ? t.rows.length : null; entry.sourceUpdatedAt = t ? t.updated : null; }
+    else { entry.status = "error"; entry.code = ev.error.code; entry.message = String(ev.error.message || "").slice(0, 300); }
+    run.calls[c.key] = entry;
+    if ([...run.expected].every((k) => run.calls[k])) finishRun();
+  }
+  async function finishRun() {
+    if (!run || run.written) return; run.written = true; clearTimeout(startRun.t);
+    const calls = Object.values(run.calls);
+    if (!calls.length || calls.every((c) => c.status === "cache")) return;
+    const doc = { at: new Date(run.startedAt).toISOString(), trigger: run.trigger, by: me, calls };
+    local.unshift(doc); renderLog();
+    if (db) { try { await db.collection("runs").add(doc); } catch (_) { /* viewers who cannot write keep a local log */ } }
+  }
+  async function renderLog() {
+    const body = $("log-body");
+    const seen = new Set(shared.map((r) => r.at + (r.by || "")));
+    const runs = [...shared, ...local.filter((r) => !seen.has(r.at + (r.by || "")))].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 20);
+    body.replaceChildren();
+    if (!runs.length) { body.append(el("p", "empty", "No runs recorded yet.")); return; }
+    let names = {};
+    if (userApi) { try { const ids = [...new Set(runs.map((r) => r.by).filter(Boolean))]; if (ids.length) names = await userApi.profiles(ids); } catch (_) {} }
+    runs.forEach((r) => {
+      const box = el("div", "run"); const head = el("div", "run__head");
+      const okN = r.calls.filter((c) => c.status === "ok").length, errN = r.calls.filter((c) => c.status === "error").length;
+      const trig = { open: "Page open", refresh: "Manual refresh", retry: "Retry of failed queries", period: "Period change", anchor: "New data day", tab: "Tab opened" }[r.trigger] || r.trigger;
+      head.append(el("span", "num", fmtStamp(r.at)), el("span", "mono-label", trig), el("span", "mono", (r.by && names[r.by] && names[r.by].name) || (r.by && r.by === me ? "you" : "a viewer")), el("span", "mono " + (errN ? "bad" : "ok"), `${okN} fresh · ${r.calls.length - okN - errN} cached · ${errN} failed`));
+      box.append(head);
+      r.calls.forEach((c) => {
+        const call = el("div", "call"); call.dataset.key = c.key;
+        const line = el("div", "call__line");
+        line.append(el("span", "mono " + (c.status === "error" ? "bad" : c.status === "cache" ? "warn" : "ok"), c.status === "error" ? `error · ${c.code}` : c.status === "cache" ? "cached" : "ok"), el("span", null, c.label), el("span", "mono", `${c.server} → ${c.tool}`));
+        if (c.rows != null) line.append(el("span", "mono", `${c.rows} rows`));
+        if (c.ms != null) line.append(el("span", "mono", `${(c.ms / 1000).toFixed(1)} s${c.retried ? " · second try" : ""}`));
+        if (c.sourceUpdatedAt) line.append(el("span", "mono", `source updated ${fmtStamp(c.sourceUpdatedAt)}`));
+        call.append(line);
+        if (c.message) call.append(el("p", "desc", c.message));
+        call.append(el("pre", "cfg", c.input));
+        box.append(call);
+      });
+      body.append(box);
+    });
+  }
+  function openLog(keys, title) {
+    const log = $("log"); log.open = true;
+    document.querySelectorAll(".call.is-target").forEach((n) => n.classList.remove("is-target"));
+    const first = document.querySelector("#log-body .run");
+    if (first) keys.forEach((k) => first.querySelectorAll(`.call[data-key="${CSS.escape(k)}"]`).forEach((n) => n.classList.add("is-target")));
+    (first || log).scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
+  // ---------- project check: this page reads one OWOX project ----------
+  let projectMismatch = null;
+  function checkProject() {
+    if (!PROJECT.id) return;
+    mcp.watchTool(SERVER, "get_project_context", null, (ev) => {
+      if (ev.type !== "data") return;
+      const p = ev.result.payload && ev.result.payload.current_project;
+      projectMismatch = p && p.id && p.id !== PROJECT.id ? `Your ${SERVER} connector is signed in to the project "${p.title}". This dashboard reads "${PROJECT.title}". Disconnect and reconnect ${SERVER} in claude.ai Settings → Connectors and choose "${PROJECT.title}".` : null;
+      pageLevelState();
+    }, { cache: { staleTime: 300000, gcTime: 3600000 } });
+  }
+
+  // ---------- wiring ----------
+  $("title").textContent = CFG.title || "Dashboard";
+  // The logo arrives inlined by build_page.py (a data: URI): artifacts load no images from other hosts.
+  if (CFG._logo && /^data:image\/(svg\+xml|png|webp|jpeg|gif);base64,/.test(CFG._logo.src)) {
+    const img = $("logo"); img.src = CFG._logo.src; img.alt = CFG._logo.alt || ""; img.hidden = false;
+    if (CFG._logo.scale) document.documentElement.style.setProperty("--logo-scale", String(Math.max(0.5, Math.min(1.5, +CFG._logo.scale))));
+  }
+  $("kicker").textContent = CFG.kicker || [PROJECT.title, CFG.context].filter(Boolean).join(" · ");
+  (function about() {
+    if (PAGES.some((p) => (p.components || []).some((k) => k.type === "data"))) { $("about").hidden = true; return; }
+    const body = $("about-body");
+    body.append(el("p", "desc", CFG.lede || `Every number is read live from OWOX Data Marts through your own ${SERVER} connector, on open and on Refresh.`));
+    const notes = PAGES.flatMap((p) => p.components || []).filter((c) => c.type === "notes").flatMap((c) => c.items || []);
+    if (notes.length) { const ol = el("ol", "notes"); notes.forEach((t) => ol.append(el("li", null, t))); body.append(ol); }
+    const more = CFG.improvements || [];
+    if (more.length) {
+      body.append(el("p", "mono-label", "Get more from this dashboard"));
+      const ul = el("ul", "notes");
+      more.forEach((x) => { const li = el("li"); li.append(document.createTextNode(x.text || String(x))); if (x.data_mart_id) { const a = el("a", null, " Open in OWOX ↗"); a.href = martUrl(x.data_mart_id, x.field); a.target = "_blank"; a.rel = "noopener"; li.append(a); } ul.append(li); });
+      body.append(ul);
+    }
+  })();
+  const sel = $("period");
+  if (!CFG.anchor) sel.hidden = true;
+  periodKeys.forEach((k) => { const o = el("option", null, PERIODS[k].label); o.value = k; if (k === period) o.selected = true; sel.append(o); });
+  sel.addEventListener("change", () => { period = sel.value; syncWatches("period"); });
+  if (PAGES.length > 1) {
+    const tabs = $("tabs"); tabs.hidden = false;
+    PAGES.forEach((p, i) => { const b = el("button", "tab", p.title); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", i === activePage ? "true" : "false"); b.addEventListener("click", () => { activePage = i; tabs.querySelectorAll(".tab").forEach((t, j) => t.setAttribute("aria-selected", j === i ? "true" : "false")); if (!visited.has(i)) { visited.add(i); syncWatches("tab"); } renderAll(); }); tabs.append(b); });
+  }
+  renderAll();
+  (async () => {
+    mcp = window.claude && window.claude.use ? await window.claude.use("mcp") : null;
+    if (!mcp) { $("asof").textContent = "Live data needs claude.ai: open this page there."; return; }
+    checkProject();
+    visited.add(activePage);
+    syncWatches("open");
+    const btn = $("refresh"); btn.disabled = false;
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; btn.textContent = "Refreshing…";
+      // Refresh re-runs the opened tabs' queries through the same queue, so it never bursts.
+      ai = {}; cycle = null;   // new data, new recommendations
+      syncWatches("refresh", true);
+    });
+  })();
+  (async () => {
+    if (!(window.claude && window.claude.use)) return;
+    const [d, u] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    db = d; userApi = u;
+    try { sampleFn = await window.claude.use("sample"); if (sampleFn) renderAll(); } catch (_) { sampleFn = null; }
+    if (u) { try { me = await u.id(); } catch (_) {} }
+    if (!db) return;
+    db.collection("runs").orderBy("at", "desc").limit(20).onSnapshot((snap) => {
+      shared = snap.docs.map((x) => x.data()).filter((r) => r && r.at && Array.isArray(r.calls));
+      renderLog();
+    }, () => {});
+  })();
+})();
+</script>
