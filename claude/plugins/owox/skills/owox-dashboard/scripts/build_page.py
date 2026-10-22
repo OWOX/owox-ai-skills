@@ -38,6 +38,15 @@ TOKEN = re.compile(r"^--[a-z0-9-]+$")
 CSS_VALUE = re.compile(r"^[#(),.%\w\s\"'-]+$")
 
 
+CONFIG_DIR = Path(".")
+
+
+def logo_path(name):
+    """A logo file sits in the config's own folder; any other location is refused."""
+    path = (CONFIG_DIR / Path(name).name).resolve()
+    return path if Path(name).name == name else None
+
+
 def validate(cfg):
     errs = []
     need = lambda cond, msg: cond or errs.append(msg)
@@ -150,12 +159,13 @@ def validate(cfg):
     logo = theme.get("logo")
     if isinstance(logo, dict):
         f = logo.get("file")
-        need(f and Path(f).expanduser().is_file(), f"theme.logo.file: '{f}' is not a local file; download the logo first")
+        lp = logo_path(f) if f else None
+        need(lp and lp.is_file(), f"theme.logo.file: '{f}' is not a file in the config's folder; download the logo there first")
         need(not f or Path(f).suffix.lower() in LOGO_TYPES, f"theme.logo.file must be one of {sorted(LOGO_TYPES)}")
-        if f and Path(f).expanduser().is_file():
-            need(Path(f).expanduser().stat().st_size <= 300_000, "theme.logo.file is over 300 KB; use an SVG or a smaller PNG")
-            if Path(f).suffix.lower() == ".svg":
-                need(not UNSAFE_SVG.search(Path(f).expanduser().read_text(errors="ignore")), "theme.logo.file: the SVG holds scripts or event handlers; use a clean SVG or a PNG")
+        if lp and lp.is_file():
+            need(lp.stat().st_size <= 300_000, "theme.logo.file is over 300 KB; use an SVG or a smaller PNG")
+            if lp.suffix.lower() == ".svg":
+                need(not UNSAFE_SVG.search(lp.read_text(errors="ignore")), "theme.logo.file: the SVG holds scripts or event handlers; use a clean SVG or a PNG")
     else:
         need(logo in (None, False), "theme.logo is an object { file, alt, scale } or false")
     fonts = theme.get("fonts_css")
@@ -191,6 +201,8 @@ def main():
     if len(sys.argv) != 3:
         print(__doc__)
         sys.exit(2)
+    global CONFIG_DIR
+    CONFIG_DIR = Path(sys.argv[1]).resolve().parent
     cfg = json.loads(Path(sys.argv[1]).read_text())
     errs = validate(cfg)
     if errs:
@@ -201,8 +213,8 @@ def main():
     theme = cfg.get("theme") or {}
     logo = theme.get("logo")
     if logo is not False:
-        spec = logo if isinstance(logo, dict) else {"file": str(DEFAULT_LOGO), "alt": "OWOX"}
-        path = Path(spec["file"]).expanduser()
+        spec = logo if isinstance(logo, dict) else {"alt": "OWOX"}
+        path = logo_path(spec["file"]) if isinstance(logo, dict) else DEFAULT_LOGO
         cfg["_logo"] = {"src": f"data:{LOGO_TYPES[path.suffix.lower()]};base64," + base64.b64encode(path.read_bytes()).decode(),
                         "alt": spec.get("alt", ""), "scale": spec.get("scale", 1)}
     page = ENGINE.read_text()

@@ -17,5 +17,7 @@
     "kpi",
     "analytics",
     "mcp"
-  ]
+  ],
+  "privacyPolicyUrl": "https://www.owox.com/policies/privacy",
+  "icon": ".claude-plugin/icon.png"
 }

@@ -27,7 +27,7 @@ The engine ships the owox.com look: dark, Roboto for text, Space Mono for number
 
 The page shows a logo top left, next to the title. Default: the OWOX app icon (`assets/owox-app-icon.svg`, from owox.com/company/logo-signs).
 
-- **The user's logo** comes from where the user points, from the design system, or from their website: the `<link rel="icon">` / `apple-touch-icon` for a square mark, or the header's logo `<img>` or inline `<svg>` for a wordmark. Download that one file into the config's folder (an SVG or a PNG under 300 KB; prefer the version that reads on the page's background) and set `theme.logo = { "file": "<path>", "alt": "<Company>" }`. `build_page.py` inlines it as a `data:` URI, because artifacts load no images from other hosts, and refuses an SVG that holds scripts or event handlers.
+- **The user's logo** comes from where the user points, from the design system, or from their website: the `<link rel="icon">` / `apple-touch-icon` for a square mark, or the header's logo `<img>` or inline `<svg>` for a wordmark. Download that one file into the config's folder (an SVG or a PNG under 300 KB; prefer the version that reads on the page's background) and set `theme.logo = { "file": "<file name>", "alt": "<Company>" }`. `build_page.py` inlines it as a `data:` URI, because artifacts load no images from other hosts, and refuses an SVG that holds scripts or event handlers.
 - The logo sits on the title's line, centred on it, as tall as the title's letters; a wide wordmark is capped at about four and a half letters' width. `scale` (0.5–1.5, default 1) makes it smaller or larger.
 - `theme.logo: false` shows no logo.
 - If you cannot find a logo the user would recognise, keep the default and say so; never draw or approximate one.
@@ -37,7 +37,7 @@ The page shows a logo top left, next to the title. Default: the OWOX app icon (`
 ```json
 "theme": {
   "grid": false,
-  "logo": { "file": "~/owox-dashboards/acme-sales/acme-logo.svg", "alt": "Acme", "scale": 1 },
+  "logo": { "file": "acme-logo.svg", "alt": "Acme", "scale": 1 },
   "follow_viewer": true,
   "radius": 8,
   "fonts_css": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap",
