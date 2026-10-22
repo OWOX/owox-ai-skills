@@ -1,7 +1,7 @@
 {
   "name": "owox",
   "displayName": "OWOX",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "OWOX Data Marts for your AI assistant: the OWOX MCP connector plus skills. Build live, refreshable dashboards over your published Data Marts that colleagues open with their own OWOX access.",
   "author": {
     "name": "OWOX",

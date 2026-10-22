@@ -1411,6 +1411,8 @@ __THEME_CSS__
     if (st.steps && st.steps.length) { const ul = el("ul"); st.steps.forEach((t) => ul.append(el("li", null, t))); p.append(ul); }
     if (st.link) { const a = el("a", null, "Open in Google Sheets ↗"); a.href = st.link; a.target = "_blank"; a.rel = "noopener"; p.append(a); }
     if (st.error) p.append(el("p", "state state--bad", st.error));
+    // The account is remembered per viewer; this is the way back to the choice.
+    if (!st.busy && st.title && !st.denied) { const ch = el("button", "linkbtn", "Export to another Google account"); ch.type = "button"; ch.style.marginTop = "0"; ch.addEventListener("click", () => { const sv = xread(); delete sv.destination; xwrite(sv); delete xstate[c.id]; startExport(c); }); p.append(ch); }
     if (!st.busy && st.denied) { const go = el("button", "btn btn--sm", "Connect my own Google Sheets"); go.type = "button"; go.addEventListener("click", () => connectSheets(c)); p.append(go); }
     if (!st.busy) { const x = el("button", "linkbtn", "Close"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); }); p.append(x); }
     return p;
@@ -1462,7 +1464,7 @@ __THEME_CSS__
   async function runExport(c, dest) {
     const parts = exportParts(c);
     const w = anchor ? PERIODS[period].win(anchor) : null;
-    const st = xstate[c.id] = { busy: true, title: `Exporting ${parts.length === 1 ? "1 table" : parts.length + " tables"} to Google Sheets (${dest.name})…`, steps: [] };
+    const st = xstate[c.id] = { busy: true, title: `Exporting ${parts.length === 1 ? "1 table" : parts.length + " tables"} to Google Sheets (${dest.connectedGoogleAccount ? dest.name + " · " + dest.connectedGoogleAccount : dest.name})…`, steps: [] };
     renderAll();
     const saved = xread(); const key = `${c.id}:${dest.id}`; const mem = saved[key] || { reports: {} };
     let spreadsheet = mem.spreadsheet_id || null, link = mem.sheet_url || null; const runs = [];
