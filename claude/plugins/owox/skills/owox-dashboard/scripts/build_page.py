@@ -67,6 +67,7 @@ def validate(cfg):
         need(scope in SCOPES, f"queries.{qid}: scope must be one of {sorted(SCOPES)}")
         if scope in ("range", "window"):
             need(q.get("date_field"), f"queries.{qid}: scope {scope} needs date_field (the field the page filters by period)")
+        need(not q.get("as_of") or scope == "window", f"queries.{qid}: as_of (read the period's last day only) applies to window queries")
         if scope == "range":
             buckets = inp.get("date_buckets") or []
             need(buckets, f"queries.{qid}: a range query is a time series: bucket its date field by DAY (additive) or MONTH (ratio)")
@@ -95,12 +96,16 @@ def validate(cfg):
     for mid, m in metrics.items():
         need(m.get("label"), f"metrics.{mid}: label is required")
         need(m.get("format", "number") in FORMATS, f"metrics.{mid}: format must be one of {sorted(FORMATS)}")
-        need(m.get("kind", "additive") in ("additive", "ratio"), f"metrics.{mid}: kind is additive or ratio")
+        kind = m.get("kind", "additive")
+        need(kind in ("additive", "ratio", "snapshot"), f"metrics.{mid}: kind is additive, ratio or snapshot (a level at a date: ARR, customers, a balance)")
         need(m.get("direction", "up") in ("up", "down"), f"metrics.{mid}: direction is up or down")
         need(m.get("series") or m.get("window") or m.get("static"), f"metrics.{mid}: needs series (range query), window (window query) or static (one value, no dates)")
         check_ref(f"metrics.{mid}.static", m.get("static"), ["static"])
         if m.get("kind") == "ratio" and not m.get("static"):
             need(m.get("window"), f"metrics.{mid}: a ratio needs a window query so OWOX computes it over the whole period")
+        if kind == "snapshot" and m.get("window"):
+            wq = queries.get(m["window"].get("query")) or {}
+            need(wq.get("as_of"), f"metrics.{mid}: a snapshot's window query needs \"as_of\": true, so OWOX returns the value on the period's last day instead of a sum over its days")
         check_ref(f"metrics.{mid}.series", m.get("series"), ["range"])
         check_ref(f"metrics.{mid}.window", m.get("window"), ["window"])
         check_ref(f"metrics.{mid}.plan", m.get("plan"), ["static", "range"])
@@ -108,8 +113,14 @@ def validate(cfg):
         if pl:
             need(pl.get("date"), f"metrics.{mid}.plan.date is required")
             need(pl.get("value") or (pl.get("numerator") and pl.get("denominator")), f"metrics.{mid}.plan needs value, or numerator and denominator (lists of fields)")
-            if m.get("kind") == "ratio":
+            if kind == "ratio":
                 need(pl.get("numerator"), f"metrics.{mid}.plan: a ratio's plan is numerator ÷ denominator of planned sums, never a sum of daily rates")
+                need(not pl.get("cumulative"), f"metrics.{mid}.plan: cumulative applies to additive metrics")
+            if kind == "snapshot":
+                need(pl.get("value") and not pl.get("numerator"), f"metrics.{mid}.plan: a snapshot's plan is the planned level (value) on each date")
+                need(not pl.get("cumulative"), f"metrics.{mid}.plan: a snapshot's plan is already read at the period's last day; drop cumulative")
+            if pl.get("cumulative"):
+                need(pl.get("grain", "day") == "day", f"metrics.{mid}.plan: a cumulative plan needs one row per day (grain day)")
         t = m.get("target")
         if t:
             need(isinstance(t.get("value"), (int, float)), f"metrics.{mid}.target.value must be a number")
@@ -146,6 +157,8 @@ def validate(cfg):
             need(q and q.get("scope", "static") in ("window", "static"), f"component {cid}: breakdown needs a window query (or a static one when no Data Mart has a date)")
             need(c.get("dimension") and c.get("value"), f"component {cid}: dimension and value (column names) are required")
             need(c.get("metric") in metrics or c.get("format"), f"component {cid}: metric or format is required")
+            if (metrics.get(c.get("metric")) or {}).get("kind") == "snapshot" and q and q.get("scope") == "window":
+                need(q.get("as_of"), f"component {cid}: a breakdown of a snapshot metric needs an as_of window query, or it adds the level up over the period's days")
             need(c.get("sources"), f"component {cid}: sources are required")
         if t in ("waterfall", "table"):
             need(ids.get(c.get("from"), {}).get("type") == "breakdown", f"component {cid}: from must name a breakdown component id")

@@ -40,6 +40,7 @@
 - `input` is exactly the `query_data_mart` arguments **without** `data_mart_id` and without the period filter; the page adds `{ field: date_field, operator: "between", value: { from, to } }` to `filters`.
 - `date_field` may be a joined field (filters apply after the join).
 - `label` is shown in the run log; name the Data Marts it reads.
+- `as_of: true` (window queries only): the page filters both periods to their last day, so OWOX returns a level as it stood then. Required for a `snapshot` metric's `window` and for breakdowns of a snapshot.
 
 ## Metric
 
@@ -61,10 +62,11 @@
 ```
 
 - `to_primary` (optional): `{ "multiply": [metric ids] }`: a driver's change times those metrics' current values, shown as an Estimate in the key metric's unit. Only for a formula that is plain arithmetic of the business (paid sessions × conversion × order value); otherwise leave it out.
+- `kind`: `additive` (default; adds up over days), `ratio` (OWOX computes it per period) or `snapshot` (a level at a date: ARR, active customers; `window` on an `as_of` query, `series` by `DAY` for the trend; never summed, no forecast).
 - `format`: `currency`, `number`, `percent` (a fraction: 0.028 → 2.8%), `ratio` (two decimals), `decimal`.
 - Additive metrics need `series` (a `range` query by `DAY`). Ratios need `window` and usually `series` (by `MONTH`). A project without dates uses `static: { query, value }`: one value, no comparison.
 - `value` and `date` are column names as `column_metadata[].name` returns them; an aggregated column is `field | SUM`.
-- `plan`: a `static` query on the plan Data Mart (no filter, `limit` 1000), `date` its date column (text `YYYY-MM-DD` is fine), and either `value` (additive: summed over the period's days) or `numerator` and `denominator` (lists of columns summed over the period, `"-col"` subtracts; e.g. completion = `["orders", "-cancelled_orders", "-returned_orders"]` ÷ `["orders"]`). `grain: "month"` for a plan with one row per month.
+- `plan`: a `static` query on the plan Data Mart (no filter, `limit` 1000), `date` its date column (text `YYYY-MM-DD` is fine), and either `value` (additive: summed over the period's days) or `numerator` and `denominator` (lists of columns summed over the period, `"-col"` subtracts; e.g. completion = `["orders", "-cancelled_orders", "-returned_orders"]` ÷ `["orders"]`). `grain: "month"` for a plan with one row per month. `cumulative: true` for a running-total plan (one row per day, additive metrics only): a period's plan is the value on its last day less the value the day before it starts. A `snapshot` metric's plan has `value` only: the planned level, read on the period's last day.
 - `sources[].fields[].name` is the field's name **in its own Data Mart** (for a joined field, the part after the last `__`), so its link opens the right field: `app.owox.com/ui/<project>/data-marts/<id>/data-setup?field=<name>`.
 
 ## Components

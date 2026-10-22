@@ -22,6 +22,7 @@ These rules come from dashboards built with OWOX customers. The engine already i
 | `static` | Runs as written | none | anchor (`MAX` of the date), plan Data Marts |
 | `range` | A time series over the loaded range | the page adds `between` [range start, anchor] on `date_field` | additive metrics by `DAY` (sums per period in the page); ratios by `MONTH` (trend lines, sparklines) |
 | `window` | One answer per period | the page adds `between` for the period, then again for the comparison | ratios over the whole period; breakdowns by a dimension |
+| `window` with `as_of: true` | The value on the period's last day | the page adds `between` [last day, last day] for the period and for the comparison | snapshots (ARR, active customers) and their breakdowns |
 
 ## When the model is thin
 
@@ -34,6 +35,7 @@ Build from what exists; never guess what is missing.
 | Joins | Breakdowns only by the Data Mart's own fields | The join and its key |
 | Calculated field for a ratio | Leave the ratio out (never divide two queries in the page) | The calculated field |
 | Field or Data Mart descriptions | Labels from field names, said in the notes | Descriptions |
+| How a metric adds up over time (a level, a running-total plan) | Ask the user; build with the answer | Describe it on the field: "ARR: level on the date, never summed over days" |
 | Any date field | A snapshot: `static` queries, scorecards with `static` metrics, breakdowns on `static` queries, no anchor, no periods, no trends | The date field |
 
 ## Metric rules
@@ -41,13 +43,14 @@ Build from what exists; never guess what is missing.
 - A metric exists only if a Data Mart defines it or this method tells you how to derive it. Never invent one.
 - **Additive** (`kind: "additive"`): sums, counts of entities that fall in exactly one day (orders by order date). The page sums the daily OWOX values for each period; label such totals "OWOX values, summed in the page".
 - **Ratio** (`kind: "ratio"`): rates, ROAS, CPC, margins, averages. Read with a `window` query so OWOX computes it over the whole period, and with a monthly `range` query for the trend. Never sum or average a ratio across buckets.
+- **Snapshot** (`kind: "snapshot"`): a level at a date: ARR, MRR, active customers, a balance, stock. Never summed over days. The scorecard reads a `window` query with `as_of: true`, so OWOX returns the value on the period's last day (and on the comparison's last day); a daily `range` query gives the trend, where each month shows its last loaded day. Its breakdowns use `as_of` window queries too. No forecast. Which metrics are snapshots is the data model's to say: read it from the descriptions or ask; when you had to ask, put the missing description into `improvements`.
 - Prefer a calculated metric field over rebuilding it from parts. Pass on its `usage` caveat (e.g. "reads Orders through a join") in the block's description or the notes.
 - Use `COUNT_DISTINCT` or a Data Mart's own Unique Count field for unique entities; never count raw rows yourself.
 - `direction`: `up` unless the target says lower is better (CPC, cost, churn, returns).
 
 ## Plan, targets and status
 
-- **Plan**: only from a Data Mart a context or the Project description names as the plan, usually one row per day (or per month). A period's plan sums the plan's days in it (monthly plans are pro-rated by days). A ratio's plan is numerator ÷ denominator of planned sums, exactly as the plan Data Mart's description says; a daily planned rate is never summed or averaged.
+- **Plan**: only from a Data Mart a context or the Project description names as the plan, usually one row per day (or per month). A period's plan sums the plan's days in it (monthly plans are pro-rated by days). A ratio's plan is numerator ÷ denominator of planned sums, exactly as the plan Data Mart's description says; a daily planned rate is never summed or averaged. A plan stored as a running total (`plan.cumulative: true`, one row per day) is read, not summed: a period's plan is its value on the last day less its value the day before the period starts (0 before the plan begins). A snapshot's plan is the planned level on the period's last day.
 - **Target**: a constant taken from a context's text, with the context named in `sources` (`{ "role": "Target", "text": "…" }`). `horizon: "period"` when the target applies to any period (a rate), `"year"` when it is an annual total. Never infer a horizon the text does not state.
 - **Variance** = fact − plan. **Change** = this period − comparison. **Gap** = target − fact (annual: target − full-year forecast).
 - **Status**, one rule everywhere: against plan if there is one, else against a period target, else against the comparison. Green at or above it (in the metric's direction), amber under it by less than 20%, red 20% or more, grey when not measurable.

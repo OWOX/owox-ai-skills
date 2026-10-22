@@ -368,9 +368,11 @@ __THEME_CSS__
     return out;
   }
   const chunkKeys = (qid) => { const q = QUERIES[qid]; if (!q || q.scope !== "range" || !anchor) return [qid]; const n = rangeChunks(q, anchor).length; return n === 1 ? [qid] : Array.from({ length: n }, (_, i) => `${qid}~${i}`); };
-  function withDateFilter(input, field, w) {
+  // An as_of query reads one day, the period's last: OWOX returns a snapshot (ARR, customers, a balance)
+  // as it stood then, instead of a sum over the period's days.
+  function withDateFilter(input, field, w, asOf) {
     const out = JSON.parse(JSON.stringify(input));
-    out.filters = (out.filters || []).concat([{ field, operator: "between", value: { from: w[0], to: w[1] } }]);
+    out.filters = (out.filters || []).concat([{ field, operator: "between", value: { from: asOf ? w[1] : w[0], to: w[1] } }]);
     return out;
   }
   // Every call the page makes: its key, the query id, the exact input sent to OWOX.
@@ -407,8 +409,8 @@ __THEME_CSS__
       else if (scope === "range") { const ch = rangeChunks(q, anchor); ch.forEach((w, i) => calls.push({ key: ch.length === 1 ? qid : `${qid}~${i}`, qid, input: withDateFilter(base, q.date_field, w), scope })); }
       else if (scope === "window") {
         const w = PERIODS[period].win(anchor);
-        calls.push({ key: `${qid}@cur`, qid, input: withDateFilter(base, q.date_field, w.cur), scope, window: "cur" });
-        calls.push({ key: `${qid}@cmp`, qid, input: withDateFilter(base, q.date_field, w.cmp), scope, window: "cmp" });
+        calls.push({ key: `${qid}@cur`, qid, input: withDateFilter(base, q.date_field, w.cur, q.as_of), scope, window: "cur" });
+        calls.push({ key: `${qid}@cmp`, qid, input: withDateFilter(base, q.date_field, w.cmp, q.as_of), scope, window: "cmp" });
       }
     });
     return calls;
@@ -540,6 +542,11 @@ __THEME_CSS__
   const loadingOf = (keys) => keys.some((k) => !store[k] || store[k].loading);
 
   // ---------- metric math ----------
+  // Three kinds of metric. additive: adds up over days (revenue, orders). ratio: OWOX computes it over the
+  // whole period (conversion). snapshot: a level at a date (ARR, customers): never added up over days; a
+  // period shows the value on its last day, a month the value on its last loaded day.
+  const isSnap = (m) => m.kind === "snapshot";
+  const flat = (m) => m.kind === "ratio" || isSnap(m);
   function seriesRows(m) {
     const s = m.series; if (!s) return null;
     const tables = chunkKeys(s.query).map(tableOf); if (tables.some((t) => !t)) return null;
@@ -550,9 +557,14 @@ __THEME_CSS__
     const rows = seriesRows(m); if (!rows) return null;
     const by = {};
     // The first loaded month of a daily range is usually partial: leave it out of monthly views.
-    const from = anchor && m.kind !== "ratio" ? rangeOf(anchor)[0] : null;
+    const from = anchor && !flat(m) ? rangeOf(anchor)[0] : null;
     const skip = from && from.slice(8) !== "01" ? D.monthKey(from) : null;
-    rows.forEach((r) => { const k = D.monthKey(r.day); if (!isNum(r.v) || k === skip) return; if (m.kind === "ratio") by[k] = r.v; else by[k] = (by[k] || 0) + r.v; });
+    const last = {};
+    rows.forEach((r) => {
+      const k = D.monthKey(r.day); if (!isNum(r.v) || k === skip) return;
+      if (isSnap(m)) { if (!last[k] || r.day > last[k]) { last[k] = r.day; by[k] = r.v; } }
+      else if (m.kind === "ratio") by[k] = r.v; else by[k] = (by[k] || 0) + r.v;
+    });
     return by;
   }
   // Plan rows: one per day (default) or per month. A ratio's plan is a ratio of planned sums
@@ -570,14 +582,25 @@ __THEME_CSS__
   const planValue = (m, num, den, n) => m.plan.numerator ? (den ? num / den : null) : (m.kind === "ratio" ? (n ? num / n : null) : num);
   function planMonths(m) {
     const rows = planRows(m); if (!rows) return null;
+    if (isSnap(m) || m.plan.cumulative) {
+      const by = {};
+      new Set(rows.map((r) => D.monthKey(r.day))).forEach((k) => { const y = D.year(k + "-01"), mo = D.month(k + "-01"); const v = planFor(m, [k + "-01", D.ymd(y, mo, D.dim(y, mo))]); if (isNum(v)) by[k] = v; });
+      return by;
+    }
     const acc = {};
     rows.forEach((r) => { const k = D.monthKey(r.day); const a = acc[k] || (acc[k] = { num: 0, den: 0, n: 0 }); a.num += r.num; a.den += r.den; a.n += 1; });
     const by = {}; Object.entries(acc).forEach(([k, a]) => { const v = planValue(m, a.num, a.den, a.n); if (isNum(v)) by[k] = v; });
     return by;
   }
+  // The plan as it stands on a day: the latest plan row on or before it.
+  function planAt(rows, d) { let best = null; rows.forEach((r) => { if (r.day <= d && (!best || r.day > best.day)) best = r; }); return best ? best.num : null; }
   // A period's plan: daily plans summed over its days; monthly plans pro-rated by the days inside the period.
+  // A snapshot's plan is the planned level on the period's last day. A cumulative plan (a running total)
+  // is its value on the last day less its value the day before the period starts.
   function planFor(m, w) {
     const rows = planRows(m); if (!rows || !rows.length) return null;
+    if (isSnap(m)) return planAt(rows, w[1]);
+    if (m.plan.cumulative) { const end = planAt(rows, w[1]); if (!isNum(end)) return null; const start = planAt(rows, D.add(w[0], -1)); return end - (isNum(start) ? start : 0); }
     let num = 0, den = 0, n = 0;
     if ((m.plan.grain || "day") === "day") {
       rows.forEach((r) => { if (r.day >= w[0] && r.day <= w[1]) { num += r.num; den += r.den; n += 1; } });
@@ -604,7 +627,9 @@ __THEME_CSS__
     }
     if (m.kind === "ratio") return null;
     const rows = seriesRows(m); if (!rows || !anchor) return null;
-    return sumIn(rows, PERIODS[period].win(anchor)[which]);
+    const w = PERIODS[period].win(anchor)[which];
+    if (isSnap(m)) { let best = null; rows.forEach((r) => { if (isNum(r.v) && r.day >= w[0] && r.day <= w[1] && (!best || r.day > best.day)) best = r; }); return best ? best.v : null; }
+    return sumIn(rows, w);
   }
   function metricKeys(m) {
     const keys = [];
@@ -615,7 +640,7 @@ __THEME_CSS__
     return keys;
   }
   function forecast(m) {
-    if (m.kind === "ratio" || !anchor) return null;
+    if (flat(m) || !anchor) return null;
     const rows = seriesRows(m); if (!rows) return null;
     if (period === "ytd") {
       const w = PERIODS.ytd.win(anchor);
@@ -789,7 +814,7 @@ __THEME_CSS__
     const y = D.year(anchor), months = Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, "0")}`);
     const ly = (k) => `${y - 1}${k.slice(4)}`;
     const curKey = D.monthKey(anchor);
-    const ratio = m.kind === "ratio";
+    const ratio = flat(m);
     const cumulative = c.mode === "cumulative" && !ratio;
     let fact = months.map((k) => k <= curKey && isNum(by[k]) ? by[k] : null);
     let prior = months.map((k) => isNum(by[ly(k)]) ? by[ly(k)] : null);
@@ -846,6 +871,7 @@ __THEME_CSS__
     hit.addEventListener("pointerleave", () => tip.hide());
   }
   function forecastYear(m) {
+    if (flat(m)) return null;
     const rows = seriesRows(m); if (!rows || !anchor) return null;
     const w = PERIODS.ytd.win(anchor); const ytd = sumIn(rows, w.cur), ytdLy = sumIn(rows, w.cmp);
     const rest = sumIn(rows, [D.add(w.cmp[1], 1), `${D.year(anchor) - 1}-12-31`]);
@@ -1078,7 +1104,7 @@ __THEME_CSS__
       const mid = d.b.metric && METRICS[d.b.metric] ? d.b.metric : null;
       const ev = mid ? evaluate(mid) : null;
       if (ev && isNum(ev.plan) && ev.plan) why.push(`${m.label} is ${fmtPct(ev.variance / Math.abs(ev.plan))} vs plan for the period (${fmtDelta(ev.variance, m.format)}).`);
-      if (ev && m.plan && m.kind !== "ratio" && anchor) {
+      if (ev && m.plan && !flat(m) && anchor) {
         const y = D.year(anchor), yearPlan = planFor(m, [`${y}-01-01`, `${y}-12-31`]), fy = forecastYear(m);
         if (isNum(yearPlan) && isNum(fy)) why.push(`Full-year forecast ${fmt(fy, m.format, true)} against the ${y} plan of ${fmt(yearPlan, m.format, true)}: ${fmtDelta(fy - yearPlan, m.format)}.`);
       }
@@ -1239,7 +1265,7 @@ __THEME_CSS__
     let keys = [];
     if (c.type === "plan_vs_fact") {
       const lg = el("div", "legend"); const add = (cls, t) => { const s = el("span"); s.append(el("i", cls), document.createTextNode(t)); lg.append(s); };
-      const ratio = m.kind === "ratio"; const cum = c.mode === "cumulative" && !ratio;
+      const ratio = flat(m); const cum = c.mode === "cumulative" && !ratio;
       add(ratio || cum ? "line" : "", `${anchor ? D.year(anchor) : "This year"} fact`); add("prior", `${anchor ? D.year(anchor) - 1 : "Last year"}`);
       if (m.plan) add("plan", "Plan"); else if (m.target) add("plan", ratio ? "Target" : "Pace to target");
       if (!ratio && !cum) add("fc", "Month forecast");
@@ -1329,7 +1355,7 @@ __THEME_CSS__
       const base = Object.assign({}, q.input || {}); delete base.limit;
       let input = base, label = q.label || qid;
       if (scope === "range") input = withDateFilter(base, q.date_field, rangeOf(anchor));
-      if (scope === "window") { const w = PERIODS[period].win(anchor)[which]; input = withDateFilter(base, q.date_field, w); label += which === "cur" ? " · this period" : " · comparison"; }
+      if (scope === "window") { const w = PERIODS[period].win(anchor)[which]; input = withDateFilter(base, q.date_field, w, q.as_of); label += which === "cur" ? " · this period" : " · comparison"; }
       out.push({ id, data_mart_id: q.data_mart_id, input, label });
     };
     const fromMetric = (mid) => { const m = METRICS[mid]; if (!m) return; if (m.static) addQ(m.static.query); if (m.series) addQ(m.series.query); if (m.window) { addQ(m.window.query, "cur"); addQ(m.window.query, "cmp"); } if (m.plan) addQ(m.plan.query); };
