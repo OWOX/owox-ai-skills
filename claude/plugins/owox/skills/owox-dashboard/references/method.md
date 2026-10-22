@@ -35,7 +35,7 @@ Build from what exists; never guess what is missing.
 | Joins | Breakdowns only by the Data Mart's own fields | The join and its key |
 | Calculated field for a ratio | Leave the ratio out (never divide two queries in the page) | The calculated field |
 | Field or Data Mart descriptions | Labels from field names, said in the notes | Descriptions |
-| How a metric adds up over time (a level, a running-total plan) | Ask the user; build with the answer | Describe it on the field: "ARR: level on the date, never summed over days" |
+| How a metric adds up over time (a level, a running-total plan): allowed aggregations cover rows, not days | Ask the user; build with the answer | Describe it on the field: "ARR: level on the date, never summed over days" |
 | Any date field | A snapshot: `static` queries, scorecards with `static` metrics, breakdowns on `static` queries, no anchor, no periods, no trends | The date field |
 
 ## Metric rules
@@ -43,7 +43,7 @@ Build from what exists; never guess what is missing.
 - A metric exists only if a Data Mart defines it or this method tells you how to derive it. Never invent one.
 - **Additive** (`kind: "additive"`): sums, counts of entities that fall in exactly one day (orders by order date). The page sums the daily OWOX values for each period; label such totals "OWOX values, summed in the page".
 - **Ratio** (`kind: "ratio"`): rates, ROAS, CPC, margins, averages. Read with a `window` query so OWOX computes it over the whole period, and with a monthly `range` query for the trend. Never sum or average a ratio across buckets.
-- **Snapshot** (`kind: "snapshot"`): a level at a date: ARR, MRR, active customers, a balance, stock. Never summed over days. The scorecard reads a `window` query with `as_of: true`, so OWOX returns the value on the period's last day (and on the comparison's last day); a daily `range` query gives the trend, where each month shows its last loaded day. Its breakdowns use `as_of` window queries too. No forecast. Which metrics are snapshots is the data model's to say: read it from the descriptions or ask; when you had to ask, put the missing description into `improvements`.
+- **Snapshot** (`kind: "snapshot"`): a level at a date: ARR, MRR, active customers, a balance, stock. Never summed over days. The scorecard reads a `window` query with `as_of: true`, so OWOX returns the value on the period's last day (and on the comparison's last day); a daily `range` query gives the trend, where each month shows its last loaded day. Its breakdowns use `as_of` window queries too. No forecast. Which metrics are snapshots is the data model's to say. A field's allowed aggregations cover aggregation across rows (ARR may be summed across customers), not across days, so read the field's description; when it does not say, ask, and put the missing description into `improvements` (e.g. "ARR: the level on the date; sum across customers, never across days").
 - Prefer a calculated metric field over rebuilding it from parts. Pass on its `usage` caveat (e.g. "reads Orders through a join") in the block's description or the notes.
 - Use `COUNT_DISTINCT` or a Data Mart's own Unique Count field for unique entities; never count raw rows yourself.
 - `direction`: `up` unless the target says lower is better (CPC, cost, churn, returns).
