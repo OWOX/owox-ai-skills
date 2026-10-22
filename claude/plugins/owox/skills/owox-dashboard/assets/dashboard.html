@@ -47,6 +47,7 @@ a { color: var(--text-link); }
 .xport__btn:hover + .xport__tip, .xport__btn:focus-visible + .xport__tip { display: block; }
 .xpanel { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--border-default); background: var(--bg-nested); font-size: 13.5px; color: var(--text-secondary); display: grid; gap: 6px; }
 .xpanel__row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.xpanel__hint { font-size: 12px; }
 .xpanel ul { margin: 0; padding-left: 1.1em; font: 400 12px/1.6 var(--font-mono); }
 .xpanel a { font-weight: 500; }
 .xpanel .select { height: 30px; font-size: 13px; }
@@ -1377,6 +1378,7 @@ __THEME_CSS__
       go.addEventListener("click", () => { if (sel.value === "__new") { connectSheets(c); return; } const d = st.choose.find((x) => x.id === sel.value); const saved = xread(); saved.destination = d.id; xwrite(saved); runExport(c, d); });
       const x = el("button", "linkbtn", "Cancel"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); });
       row.append(sel, go, x); p.append(row);
+      p.append(el("div", "xpanel__hint", "The spreadsheet is created in the Google Drive of the account you pick. Pick your own, or connect it."));
       return p;
     }
     p.append(el("div", null, st.title || ""));
@@ -1405,7 +1407,7 @@ __THEME_CSS__
     const sheets = ((r.v && r.v.destinations) || []).filter((d) => d.type === "google_sheets" && d.connectedGoogleAccount);
     xstate[c.id].known = ((r.v && r.v.destinations) || []).map((d) => d.id);
     if (!sheets.length) { xstate[c.id] = { busy: false, known: xstate[c.id].known, offerConnect: "You have no Google Sheets destination in this OWOX project yet. Connect your Google account once, and every export goes to your own Drive." }; renderAll(); return; }
-    const saved = xread(); const pick = sheets.find((d) => d.id === saved.destination) || (sheets.length === 1 ? sheets[0] : null);
+    const saved = xread(); const pick = sheets.find((d) => d.id === saved.destination);
     if (!pick) { xstate[c.id] = { busy: false, choose: sheets, known: xstate[c.id].known }; renderAll(); return; }
     runExport(c, pick);
   }
@@ -1483,7 +1485,7 @@ __THEME_CSS__
       }
     }
     st.busy = false;
-    st.title = st.error ? "Export finished with problems." : `Exported${w ? " for " + winLabel(w.cur) : ""}. The reports stay in OWOX, so you can re-run or schedule them there.`;
+    st.title = st.error ? "Export finished with problems." : `Exported${w ? " for " + winLabel(w.cur) : ""} to the Google Drive of ${dest.connectedGoogleAccount || dest.name}. The reports stay in OWOX, so you can re-run or schedule them there.`;
     renderAll();
   }
 
