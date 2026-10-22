@@ -1382,7 +1382,7 @@ __THEME_CSS__
     const closeBtn = (label) => { const x = el("button", "linkbtn", label || "Close"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); }); return x; };
     if (st.connect) {
       // Step 2 of connecting: the viewer finishes Google sign-in on the OWOX page, then comes back.
-      p.append(el("div", null, "Connect your Google account to OWOX: open the page below, sign in to Google and allow access. The destination is created as soon as you approve. Then come back and press Done."));
+      p.append(el("div", null, "Connect your own Google Sheets Destination in OWOX: open the page below, sign in to Google and allow access. The Destination is created as soon as you approve. Then come back and press Done."));
       const row = el("div", "xpanel__row");
       const a = el("a", null, "Open the OWOX page to connect Google Sheets ↗"); a.href = st.connect.url; a.target = "_blank"; a.rel = "noopener";
       const done = el("button", "btn btn--sm", "Done, export now"); done.type = "button"; done.addEventListener("click", () => afterConnect(c));
@@ -1393,7 +1393,7 @@ __THEME_CSS__
     if (st.offerConnect) {
       p.append(el("div", null, st.offerConnect));
       const row = el("div", "xpanel__row");
-      const go = el("button", "btn btn--sm", "Connect Google Sheets"); go.type = "button"; go.addEventListener("click", () => connectSheets(c));
+      const go = el("button", "btn btn--sm", "Connect Google Sheets Destination"); go.type = "button"; go.addEventListener("click", () => connectSheets(c));
       row.append(go, closeBtn("Cancel")); p.append(row);
       return p;
     }
@@ -1401,19 +1401,19 @@ __THEME_CSS__
       const row = el("div", "xpanel__row");
       row.append(el("span", null, "Export to"));
       const sel = el("select", "select"); st.choose.forEach((d) => { const o = el("option", null, (d.connectedGoogleAccount ? `${d.name} · ${d.connectedGoogleAccount}` : d.name) + (d.id === st.last ? " · recently used" : "")); o.value = d.id; sel.append(o); });
-      const nw = el("option", null, "Connect another Google account…"); nw.value = "__new"; sel.append(nw);
+      const nw = el("option", null, "Connect your own Google Sheets Destination…"); nw.value = "__new"; sel.append(nw);
       const go = el("button", "btn btn--sm", "Export"); go.type = "button";
       go.addEventListener("click", () => { if (sel.value === "__new") { connectSheets(c); return; } const d = st.choose.find((x) => x.id === sel.value); const saved = xread(); saved.destination = d.id; xwrite(saved); runExport(c, d); });
       const x = el("button", "linkbtn", "Cancel"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); });
       row.append(sel, go, x); p.append(row);
-      p.append(el("div", "xpanel__hint", "The spreadsheet is created in the Google Drive of the account you pick. Pick your own, or connect it."));
+      p.append(el("div", "xpanel__hint", "The spreadsheet is created in the Google Drive of the Destination you pick. Pick your own, or connect your own Google Sheets Destination."));
       return p;
     }
     p.append(el("div", null, st.title || ""));
     if (st.steps && st.steps.length) { const ul = el("ul"); st.steps.forEach((t) => ul.append(el("li", null, t))); p.append(ul); }
     if (st.link) { const a = el("a", null, "Open in Google Sheets ↗"); a.href = st.link; a.target = "_blank"; a.rel = "noopener"; p.append(a); }
     if (st.error) p.append(el("p", "state state--bad", st.error));
-    if (!st.busy && st.denied) { const go = el("button", "btn btn--sm", "Connect my own Google Sheets"); go.type = "button"; go.addEventListener("click", () => connectSheets(c)); p.append(go); }
+    if (!st.busy && st.denied) { const go = el("button", "btn btn--sm", "Connect your own Google Sheets Destination"); go.type = "button"; go.addEventListener("click", () => connectSheets(c)); p.append(go); }
     if (!st.busy) { const x = el("button", "linkbtn", "Close"); x.type = "button"; x.style.marginTop = "0"; x.addEventListener("click", () => { delete xstate[c.id]; renderAll(); }); p.append(x); }
     return p;
   }
@@ -1424,24 +1424,24 @@ __THEME_CSS__
   function exportError(r) {
     const e = r.e || {}; const code = r.body && r.body.error_code;
     if (e.code === "approval_required" || e.code === "not_in_manifest") return `Exporting needs your permission for OWOX report tools on this page: allow them when claude.ai asks, or set add_report and update_report to "Always allow" for ${SERVER} in claude.ai Settings → Connectors.`;
-    if (code === "permission_denied") return `Your ${SERVER} connector cannot export this Data Mart: your project role may have no access, or this Google Sheets destination is not shared with you.`;
+    if (code === "permission_denied") return `Your ${SERVER} connector cannot export this Data Mart: your project role may have no access, or this Google Sheets Destination is not shared with you.`;
     return (r.body && r.body.message) || errorCopy(e);
   }
   async function startExport(c) {
     if (!mcp || (xstate[c.id] && xstate[c.id].busy)) return;
-    xstate[c.id] = { busy: true, title: "Finding your Google Sheets destination…", steps: [] }; renderAll();
+    xstate[c.id] = { busy: true, title: "Finding your Google Sheets Destinations…", steps: [] }; renderAll();
     const r = await call("list_destinations", {});
     if (!r.ok) { xstate[c.id] = { busy: false, error: exportError(r) }; renderAll(); return; }
     const sheets = ((r.v && r.v.destinations) || []).filter((d) => d.type === "google_sheets" && d.connectedGoogleAccount);
     xstate[c.id].known = ((r.v && r.v.destinations) || []).map((d) => d.id);
-    if (!sheets.length) { xstate[c.id] = { busy: false, known: xstate[c.id].known, offerConnect: "You have no Google Sheets destination in this OWOX project yet. Connect your Google account once, and every export goes to your own Drive." }; renderAll(); return; }
+    if (!sheets.length) { xstate[c.id] = { busy: false, known: xstate[c.id].known, offerConnect: "You have no Google Sheets Destination in this OWOX project yet. Connect your own once, and every export can go to your own Drive." }; renderAll(); return; }
     // Every export asks where to write: the spreadsheet lands on the Drive of the account picked.
     // The account used last time comes first and says so.
     const last = xread().destination;
     const choose = sheets.slice().sort((a, b) => (b.id === last) - (a.id === last));
     xstate[c.id] = { busy: false, choose, last, known: xstate[c.id].known }; renderAll();
   }
-  // No usable destination: OWOX gives a link to its "Connect Google Sheets" page; the viewer signs in to Google
+  // No usable destination: OWOX gives a link to its "Connect Google Sheets Destination" page; the viewer signs in to Google
   // there, the destination appears, and the page picks the new one by comparing the list before and after.
   async function connectSheets(c) {
     const known = (xstate[c.id] && xstate[c.id].known) || [];
@@ -1458,7 +1458,7 @@ __THEME_CSS__
     if (!r.ok) { st.error = exportError(r); renderAll(); return; }
     const all = (r.v && r.v.destinations) || [];
     const fresh = all.filter((d) => d.type === "google_sheets" && d.connectedGoogleAccount && !known.has(d.id));
-    if (!fresh.length) { st.error = "No new Google Sheets destination yet. Finish the Google sign-in on the OWOX page, then press Done again."; renderAll(); return; }
+    if (!fresh.length) { st.error = "No new Google Sheets Destination yet. Finish the Google sign-in on the OWOX page, then press Done again."; renderAll(); return; }
     if (fresh.length > 1) { xstate[c.id] = { busy: false, choose: fresh, known: all.map((d) => d.id) }; renderAll(); return; }
     const saved = xread(); saved.destination = fresh[0].id; xwrite(saved);
     runExport(c, fresh[0]);
@@ -1515,7 +1515,7 @@ __THEME_CSS__
       }
     }
     st.busy = false;
-    st.title = st.error ? "Export finished with problems." : `Exported${w ? " for " + winLabel(w.cur) : ""} to the Google Drive of ${dest.connectedGoogleAccount || dest.name}. The reports stay in OWOX, so you can re-run or schedule them there.`;
+    st.title = st.error ? "Export finished with problems." : `Exported${w ? " for " + winLabel(w.cur) : ""} through the Destination ${dest.name}${dest.connectedGoogleAccount ? " (" + dest.connectedGoogleAccount + ")" : ""}. The reports stay in OWOX, so you can re-run or schedule them there.`;
     renderAll();
   }
 

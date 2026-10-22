@@ -21,7 +21,7 @@ claude.ai (web and desktop): Customize → Plugins → Add → Add marketplace �
 
 - **While building**, Claude runs queries on your Data Marts through the connector, writes a config file, and runs the bundled `scripts/build_page.py` locally or in Claude's code sandbox. The script validates the config and assembles one HTML page. It makes no network calls.
 - **The published page** holds no numbers. When a viewer opens it, presses **Refresh data**, or opens a tab, it runs the dashboard's queries through **that viewer's own** OWOX connector. The viewer's browser keeps a copy for 12 hours.
-- **Export to Google Sheets** on a chart creates OWOX Reports in your project and runs them into your own Google Sheets destination. A viewer without a destination connects their Google account on an OWOX page.
+- **Export to Google Sheets** on a chart creates OWOX Reports in your project and runs them through the Google Sheets Destination the viewer picks on every export. A viewer without one connects their own Google Sheets Destination on an OWOX page.
 - **Run log.** The page keeps a shared log of who refreshed it and when (claude.ai artifact storage, visible to people who can open the page).
 - **Recommendations.** For drivers, Claude writes what to do and what to check from the numbers on screen, on the viewer's own Claude usage.
 - The page loads fonts from Google Fonts and nothing else from outside claude.ai.
