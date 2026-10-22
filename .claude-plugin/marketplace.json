@@ -1,0 +1,18 @@
+{
+  "name": "owox",
+  "owner": {
+    "name": "OWOX",
+    "url": "https://www.owox.com"
+  },
+  "metadata": {
+    "description": "OWOX Data Marts skills for AI assistants: governed, refreshable answers and dashboards over your published Data Marts."
+  },
+  "plugins": [
+    {
+      "name": "owox",
+      "source": "./claude/plugins/owox",
+      "description": "Connects your AI assistant to OWOX Data Marts and adds skills on top of it, starting with live dashboards.",
+      "category": "data"
+    }
+  ]
+}

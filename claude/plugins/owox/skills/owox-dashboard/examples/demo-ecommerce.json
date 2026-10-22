@@ -1,0 +1,2696 @@
+{
+ "version": 1,
+ "title": "E-commerce plan vs fact",
+ "kicker": "[Demo] E-commerce",
+ "lede": "Every team's plan against what happened, read live from OWOX Data Marts through your own OWOX Data Marts connector. Each tab loads when you open it.",
+ "connector": "OWOX Data Marts",
+ "project": {
+  "id": "ce781399cf1faf14e44c5fc3e2ec93f8",
+  "title": "[Demo] E-commerce"
+ },
+ "app_url": "https://app.owox.com",
+ "currency": "USD",
+ "time_zone": "America/New_York",
+ "periods": {
+  "default": "ytd"
+ },
+ "primary_metric": "revenue",
+ "anchor": {
+  "query": "anchor",
+  "value": "order_date | MAX"
+ },
+ "queries": {
+  "anchor": {
+   "label": "Last order date · Orders",
+   "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "order_date"
+    ],
+    "aggregations": [
+     {
+      "field": "order_date",
+      "function": "MAX"
+     }
+    ]
+   }
+  },
+  "rev_daily": {
+   "label": "Settled and booked revenue by order day · Purchases + Orders",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "orders_e_commerce__order_date",
+     "line_net_revenue",
+     "line_revenue"
+    ],
+    "date_buckets": [
+     {
+      "field": "orders_e_commerce__order_date",
+      "unit": "DAY"
+     }
+    ],
+    "sort": [
+     {
+      "field": "orders_e_commerce__order_date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000,
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     },
+     {
+      "field": "line_revenue",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "paid_rev_daily": {
+   "label": "Revenue of orders from paid visits, by visit day · Purchases + Orders + Sessions",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "orders_e_commerce_sessions_e_commerce__date",
+     "line_net_revenue"
+    ],
+    "date_buckets": [
+     {
+      "field": "orders_e_commerce_sessions_e_commerce__date",
+      "unit": "DAY"
+     }
+    ],
+    "sort": [
+     {
+      "field": "orders_e_commerce_sessions_e_commerce__date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000,
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ],
+    "filters": [
+     {
+      "field": "orders_e_commerce_sessions_e_commerce__medium",
+      "operator": "eq",
+      "value": "cpc"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce_sessions_e_commerce__date"
+  },
+  "orders_daily": {
+   "label": "Orders by day · Orders",
+   "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "order_date",
+     "orders_total"
+    ],
+    "date_buckets": [
+     {
+      "field": "order_date",
+      "unit": "DAY"
+     }
+    ],
+    "sort": [
+     {
+      "field": "order_date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000
+   },
+   "date_field": "order_date"
+  },
+  "orders_monthly": {
+   "label": "Completion rate by month · Orders",
+   "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "order_date",
+     "completion_rate"
+    ],
+    "date_buckets": [
+     {
+      "field": "order_date",
+      "unit": "MONTH"
+     }
+    ],
+    "sort": [
+     {
+      "field": "order_date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 100
+   },
+   "date_field": "order_date"
+  },
+  "orders_window": {
+   "label": "Completion rate for the period · Orders",
+   "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "completion_rate"
+    ]
+   },
+   "date_field": "order_date"
+  },
+  "cancelled_window": {
+   "label": "Cancelled orders for the period · Orders",
+   "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "orders_total"
+    ],
+    "filters": [
+     {
+      "field": "status",
+      "operator": "eq",
+      "value": "Cancelled"
+     }
+    ]
+   },
+   "date_field": "order_date"
+  },
+  "returned_window": {
+   "label": "Returned orders for the period · Orders",
+   "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "orders_total"
+    ],
+    "filters": [
+     {
+      "field": "status",
+      "operator": "eq",
+      "value": "Returned"
+     }
+    ]
+   },
+   "date_field": "order_date"
+  },
+  "sessions_daily": {
+   "label": "Sessions and orders by day · Sessions",
+   "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "date",
+     "sessions_count",
+     "orders_count"
+    ],
+    "date_buckets": [
+     {
+      "field": "date",
+      "unit": "DAY"
+     }
+    ],
+    "sort": [
+     {
+      "field": "date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000
+   },
+   "date_field": "date"
+  },
+  "paid_sessions_daily": {
+   "label": "Paid sessions by day · Sessions",
+   "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "date",
+     "sessions_count"
+    ],
+    "date_buckets": [
+     {
+      "field": "date",
+      "unit": "DAY"
+     }
+    ],
+    "sort": [
+     {
+      "field": "date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000,
+    "filters": [
+     {
+      "field": "traffic_type",
+      "operator": "eq",
+      "value": "Paid"
+     }
+    ]
+   },
+   "date_field": "date"
+  },
+  "sessions_monthly": {
+   "label": "Conversion rate by month · Sessions",
+   "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "date",
+     "conversion_rate"
+    ],
+    "date_buckets": [
+     {
+      "field": "date",
+      "unit": "MONTH"
+     }
+    ],
+    "sort": [
+     {
+      "field": "date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 100
+   },
+   "date_field": "date"
+  },
+  "sessions_window": {
+   "label": "Conversion rate for the period · Sessions",
+   "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "conversion_rate"
+    ]
+   },
+   "date_field": "date"
+  },
+  "ads_daily": {
+   "label": "Ad spend and clicks by day · Unified Ad Spend",
+   "data_mart_id": "c36e7a4e-e6c0-49ca-99f2-d8440d475363",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "date",
+     "spend",
+     "clicks"
+    ],
+    "date_buckets": [
+     {
+      "field": "date",
+      "unit": "DAY"
+     }
+    ],
+    "sort": [
+     {
+      "field": "date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000,
+    "aggregations": [
+     {
+      "field": "spend",
+      "function": "SUM"
+     },
+     {
+      "field": "clicks",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "date"
+  },
+  "ads_monthly": {
+   "label": "ROAS and CPC by month · Ad Performance",
+   "data_mart_id": "b4e58bf7-b9ee-4a85-9c0e-6dc2ba050042",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "date",
+     "roas",
+     "cpc"
+    ],
+    "date_buckets": [
+     {
+      "field": "date",
+      "unit": "MONTH"
+     }
+    ],
+    "sort": [
+     {
+      "field": "date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 100
+   },
+   "date_field": "date"
+  },
+  "ads_window": {
+   "label": "ROAS and CPC for the period · Ad Performance",
+   "data_mart_id": "b4e58bf7-b9ee-4a85-9c0e-6dc2ba050042",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "roas",
+     "cpc"
+    ]
+   },
+   "date_field": "date"
+  },
+  "margin_monthly": {
+   "label": "Net margin by month · Purchases + Orders",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "range",
+   "input": {
+    "fields": [
+     "orders_e_commerce__order_date",
+     "net_margin_pct"
+    ],
+    "date_buckets": [
+     {
+      "field": "orders_e_commerce__order_date",
+      "unit": "MONTH"
+     }
+    ],
+    "sort": [
+     {
+      "field": "orders_e_commerce__order_date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 100
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "margin_window": {
+   "label": "Net margin for the period · Purchases + Orders",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "net_margin_pct"
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "plan_sales": {
+   "label": "Daily plan · [Plan] Sales",
+   "data_mart_id": "33463315-0d40-4e45-b64d-b1bcab27c341",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "date",
+     "settled_revenue",
+     "orders"
+    ],
+    "limit": 1000
+   }
+  },
+  "plan_product": {
+   "label": "Daily plan · [Plan] Product",
+   "data_mart_id": "261676fd-0678-4474-a4b9-148f4c6003f9",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "date",
+     "sessions",
+     "orders"
+    ],
+    "limit": 1000
+   }
+  },
+  "plan_marketing": {
+   "label": "Daily plan · [Plan] Marketing",
+   "data_mart_id": "6fade3d7-5e05-420c-b346-bbd44767b724",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "date",
+     "paid_revenue",
+     "ad_spend",
+     "paid_sessions"
+    ],
+    "limit": 1000
+   }
+  },
+  "plan_ads": {
+   "label": "Daily plan · [Plan] Advertising",
+   "data_mart_id": "913ed09c-9a69-45e3-a305-1a201dc91ac7",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "date",
+     "ad_spend",
+     "clicks"
+    ],
+    "limit": 1000
+   }
+  },
+  "plan_ops": {
+   "label": "Daily plan · [Plan] Operations",
+   "data_mart_id": "b2ba38b6-ab1f-4b48-b5aa-c84d21e307d9",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "date",
+     "orders",
+     "cancelled_orders",
+     "returned_orders"
+    ],
+    "limit": 1000
+   }
+  },
+  "plan_finance": {
+   "label": "Daily plan · [Plan] Finance",
+   "data_mart_id": "25fd831f-da85-40af-a06f-2fd8b8460929",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "date",
+     "booked_revenue",
+     "settled_revenue"
+    ],
+    "limit": 1000
+   }
+  },
+  "rev_by_channel": {
+   "label": "Settled revenue by channel · Purchases → Orders → Sessions → Traffic Sources",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "orders_e_commerce_sessions_e_commerce_traffic_sources_e_commerce__channel_grouping",
+     "line_net_revenue"
+    ],
+    "limit": 50,
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "rev_by_source": {
+   "label": "Settled revenue by visit source · Purchases → Orders → Sessions",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "orders_e_commerce_sessions_e_commerce__source",
+     "line_net_revenue"
+    ],
+    "limit": 50,
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "rev_by_category": {
+   "label": "Settled revenue by category · Purchases → Products → Product Category",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "products_e_commerce_product_category_e_commerce__category_name",
+     "line_net_revenue"
+    ],
+    "limit": 100,
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "rev_by_group": {
+   "label": "Settled revenue by category group · Purchases → Products → Product Category",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "products_e_commerce_product_category_e_commerce__category_group",
+     "line_net_revenue"
+    ],
+    "limit": 100,
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "rev_by_country": {
+   "label": "Settled revenue by country · Purchases → Orders → Sessions → Countries",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "orders_e_commerce_sessions_e_commerce_countries_e_commerce__country",
+     "line_net_revenue"
+    ],
+    "limit": 100,
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "rev_by_segment": {
+   "label": "Settled revenue by customer segment · Purchases → Orders → Customers",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "orders_e_commerce_customers_e_commerce__customer_segment",
+     "line_net_revenue"
+    ],
+    "limit": 100,
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "margin_by_category": {
+   "label": "Net margin and target margin by category · Purchases → Products → Product Category",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "products_e_commerce_product_category_e_commerce__category_name",
+     "net_margin_pct",
+     "products_e_commerce_product_category_e_commerce__target_margin"
+    ],
+    "limit": 100,
+    "aggregations": [
+     {
+      "field": "products_e_commerce_product_category_e_commerce__target_margin",
+      "function": "MAX"
+     }
+    ]
+   },
+   "date_field": "orders_e_commerce__order_date"
+  },
+  "sessions_by_device": {
+   "label": "Sessions and conversion by device · Sessions",
+   "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "device_category",
+     "sessions_count",
+     "conversion_rate"
+    ],
+    "limit": 20
+   },
+   "date_field": "date"
+  },
+  "sessions_by_type": {
+   "label": "Sessions by traffic type · Sessions",
+   "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "traffic_type",
+     "sessions_count"
+    ],
+    "limit": 20
+   },
+   "date_field": "date"
+  },
+  "ads_by_source": {
+   "label": "Ad spend and clicks by platform · Unified Ad Spend",
+   "data_mart_id": "c36e7a4e-e6c0-49ca-99f2-d8440d475363",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "source",
+     "spend",
+     "clicks"
+    ],
+    "limit": 20,
+    "aggregations": [
+     {
+      "field": "spend",
+      "function": "SUM"
+     },
+     {
+      "field": "clicks",
+      "function": "SUM"
+     }
+    ]
+   },
+   "date_field": "date"
+  },
+  "cpc_by_source": {
+   "label": "CPC by platform · Ad Performance",
+   "data_mart_id": "b4e58bf7-b9ee-4a85-9c0e-6dc2ba050042",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "source",
+     "cpc"
+    ],
+    "limit": 20
+   },
+   "date_field": "date"
+  },
+  "orders_by_status": {
+   "label": "Orders by status · Orders",
+   "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+   "scope": "window",
+   "input": {
+    "fields": [
+     "status",
+     "orders_total"
+    ],
+    "limit": 10
+   },
+   "date_field": "order_date"
+  }
+ },
+ "metrics": {
+  "revenue": {
+   "label": "Settled revenue",
+   "format": "currency",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Revenue the store keeps: completed orders only. Plan: [Plan] Sales.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+     "title": "Purchases",
+     "fields": [
+      {
+       "name": "line_net_revenue",
+       "label": "Item Net Revenue"
+      }
+     ]
+    },
+    {
+     "role": "Date · joined",
+     "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+     "title": "Orders",
+     "fields": [
+      {
+       "name": "order_date",
+       "label": "Order Date"
+      }
+     ],
+     "via": "joined to Purchases on order_id"
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "33463315-0d40-4e45-b64d-b1bcab27c341",
+     "title": "[Plan] Sales",
+     "fields": [
+      {
+       "name": "settled_revenue",
+       "label": "Planned Settled Revenue"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "short": "Revenue",
+   "series": {
+    "query": "rev_daily",
+    "date": "orders_e_commerce__order_date",
+    "value": "line_net_revenue | SUM"
+   },
+   "plan": {
+    "query": "plan_sales",
+    "date": "date",
+    "value": "settled_revenue"
+   }
+  },
+  "orders": {
+   "label": "Orders",
+   "format": "number",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Distinct orders, every status, by order date. Plan: [Plan] Sales.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+     "title": "Orders",
+     "fields": [
+      {
+       "name": "orders_total",
+       "label": "Orders"
+      },
+      {
+       "name": "order_date",
+       "label": "Order Date"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "33463315-0d40-4e45-b64d-b1bcab27c341",
+     "title": "[Plan] Sales",
+     "fields": [
+      {
+       "name": "orders",
+       "label": "Planned Orders"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "series": {
+    "query": "orders_daily",
+    "date": "order_date",
+    "value": "orders_total"
+   },
+   "plan": {
+    "query": "plan_sales",
+    "date": "date",
+    "value": "orders"
+   }
+  },
+  "booked": {
+   "label": "Booked revenue",
+   "format": "currency",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Revenue of all orders placed, before cancellations and returns. Plan: [Plan] Finance.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+     "title": "Purchases",
+     "fields": [
+      {
+       "name": "line_revenue",
+       "label": "Item Revenue"
+      }
+     ]
+    },
+    {
+     "role": "Date · joined",
+     "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+     "title": "Orders",
+     "fields": [
+      {
+       "name": "order_date",
+       "label": "Order Date"
+      }
+     ],
+     "via": "joined to Purchases on order_id"
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "25fd831f-da85-40af-a06f-2fd8b8460929",
+     "title": "[Plan] Finance",
+     "fields": [
+      {
+       "name": "booked_revenue",
+       "label": "Planned Booked Revenue"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "short": "Booked",
+   "series": {
+    "query": "rev_daily",
+    "date": "orders_e_commerce__order_date",
+    "value": "line_revenue | SUM"
+   },
+   "plan": {
+    "query": "plan_finance",
+    "date": "date",
+    "value": "booked_revenue"
+   }
+  },
+  "margin": {
+   "label": "Net margin",
+   "format": "percent",
+   "kind": "ratio",
+   "direction": "up",
+   "about": "Settled profit over settled revenue, computed by OWOX for the whole period. No plan in the project.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+     "title": "Purchases",
+     "fields": [
+      {
+       "name": "net_margin_pct",
+       "label": "Net Margin %"
+      }
+     ]
+    },
+    {
+     "role": "Date · joined",
+     "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+     "title": "Orders",
+     "fields": [
+      {
+       "name": "order_date",
+       "label": "Order Date"
+      }
+     ],
+     "via": "joined to Purchases on order_id"
+    }
+   ],
+   "window": {
+    "query": "margin_window",
+    "value": "net_margin_pct"
+   },
+   "series": {
+    "query": "margin_monthly",
+    "date": "orders_e_commerce__order_date",
+    "value": "net_margin_pct"
+   }
+  },
+  "conversion": {
+   "label": "Conversion rate",
+   "format": "percent",
+   "kind": "ratio",
+   "direction": "up",
+   "about": "Orders per session, computed by OWOX over the whole period. Plan: [Plan] Product.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+     "title": "Sessions",
+     "fields": [
+      {
+       "name": "conversion_rate",
+       "label": "Conversion Rate"
+      },
+      {
+       "name": "date",
+       "label": "Date"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "261676fd-0678-4474-a4b9-148f4c6003f9",
+     "title": "[Plan] Product",
+     "fields": [
+      {
+       "name": "orders",
+       "label": "Planned Orders"
+      },
+      {
+       "name": "sessions",
+       "label": "Planned Sessions"
+      }
+     ],
+     "via": "plan = summed planned orders ÷ summed planned sessions"
+    }
+   ],
+   "short": "Conversion",
+   "window": {
+    "query": "sessions_window",
+    "value": "conversion_rate"
+   },
+   "series": {
+    "query": "sessions_monthly",
+    "date": "date",
+    "value": "conversion_rate"
+   },
+   "plan": {
+    "query": "plan_product",
+    "date": "date",
+    "numerator": [
+     "orders"
+    ],
+    "denominator": [
+     "sessions"
+    ]
+   }
+  },
+  "sessions": {
+   "label": "Sessions",
+   "format": "number",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Storefront visits from every channel. Plan: [Plan] Product.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+     "title": "Sessions",
+     "fields": [
+      {
+       "name": "sessions_count",
+       "label": "Sessions"
+      },
+      {
+       "name": "date",
+       "label": "Date"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "261676fd-0678-4474-a4b9-148f4c6003f9",
+     "title": "[Plan] Product",
+     "fields": [
+      {
+       "name": "sessions",
+       "label": "Planned Sessions"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "series": {
+    "query": "sessions_daily",
+    "date": "date",
+    "value": "sessions_count"
+   },
+   "plan": {
+    "query": "plan_product",
+    "date": "date",
+    "value": "sessions"
+   }
+  },
+  "site_orders": {
+   "label": "Orders from visits",
+   "format": "number",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Orders placed in those sessions, counted across the join to Orders. Plan: [Plan] Product.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+     "title": "Sessions",
+     "fields": [
+      {
+       "name": "orders_count",
+       "label": "Orders"
+      },
+      {
+       "name": "date",
+       "label": "Date"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "261676fd-0678-4474-a4b9-148f4c6003f9",
+     "title": "[Plan] Product",
+     "fields": [
+      {
+       "name": "orders",
+       "label": "Planned Orders"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "series": {
+    "query": "sessions_daily",
+    "date": "date",
+    "value": "orders_count"
+   },
+   "plan": {
+    "query": "plan_product",
+    "date": "date",
+    "value": "orders"
+   }
+  },
+  "roas": {
+   "label": "Store ROAS",
+   "format": "ratio",
+   "kind": "ratio",
+   "direction": "up",
+   "about": "Settled revenue of the orders from the sessions the ad spend bought, divided by that spend. Plan: [Plan] Marketing.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "b4e58bf7-b9ee-4a85-9c0e-6dc2ba050042",
+     "title": "Ad Performance",
+     "fields": [
+      {
+       "name": "roas",
+       "label": "ROAS"
+      },
+      {
+       "name": "date",
+       "label": "Date"
+      }
+     ]
+    },
+    {
+     "role": "Revenue · joined",
+     "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+     "title": "Purchases",
+     "fields": [
+      {
+       "name": "line_net_revenue",
+       "label": "Item Net Revenue"
+      }
+     ],
+     "via": "reached through Sessions and Orders inside the ROAS formula"
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "6fade3d7-5e05-420c-b346-bbd44767b724",
+     "title": "[Plan] Marketing",
+     "fields": [
+      {
+       "name": "paid_revenue",
+       "label": "Planned Paid Revenue"
+      },
+      {
+       "name": "ad_spend",
+       "label": "Planned Ad Spend"
+      }
+     ],
+     "via": "plan = summed planned paid revenue ÷ summed planned ad spend"
+    }
+   ],
+   "short": "ROAS",
+   "window": {
+    "query": "ads_window",
+    "value": "roas"
+   },
+   "series": {
+    "query": "ads_monthly",
+    "date": "date",
+    "value": "roas"
+   },
+   "plan": {
+    "query": "plan_marketing",
+    "date": "date",
+    "numerator": [
+     "paid_revenue"
+    ],
+    "denominator": [
+     "ad_spend"
+    ]
+   }
+  },
+  "paid_sessions": {
+   "label": "Paid sessions",
+   "format": "number",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Visits whose traffic type is Paid. Plan: [Plan] Marketing.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+     "title": "Sessions",
+     "fields": [
+      {
+       "name": "sessions_count",
+       "label": "Sessions"
+      },
+      {
+       "name": "traffic_type",
+       "label": "Traffic Type"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "6fade3d7-5e05-420c-b346-bbd44767b724",
+     "title": "[Plan] Marketing",
+     "fields": [
+      {
+       "name": "paid_sessions",
+       "label": "Planned Paid Sessions"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "series": {
+    "query": "paid_sessions_daily",
+    "date": "date",
+    "value": "sessions_count"
+   },
+   "plan": {
+    "query": "plan_marketing",
+    "date": "date",
+    "value": "paid_sessions"
+   }
+  },
+  "paid_revenue": {
+   "label": "Paid revenue",
+   "format": "currency",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Settled revenue of orders placed in paid visits (medium cpc), by visit day. Plan: [Plan] Marketing.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+     "title": "Purchases",
+     "fields": [
+      {
+       "name": "line_net_revenue",
+       "label": "Item Net Revenue"
+      }
+     ]
+    },
+    {
+     "role": "Visit · joined",
+     "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+     "title": "Sessions",
+     "fields": [
+      {
+       "name": "medium",
+       "label": "Medium"
+      },
+      {
+       "name": "date",
+       "label": "Date"
+      }
+     ],
+     "via": "Purchases → Orders → Sessions on session_id"
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "6fade3d7-5e05-420c-b346-bbd44767b724",
+     "title": "[Plan] Marketing",
+     "fields": [
+      {
+       "name": "paid_revenue",
+       "label": "Planned Paid Revenue"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "series": {
+    "query": "paid_rev_daily",
+    "date": "orders_e_commerce_sessions_e_commerce__date",
+    "value": "line_net_revenue | SUM"
+   },
+   "plan": {
+    "query": "plan_marketing",
+    "date": "date",
+    "value": "paid_revenue"
+   }
+  },
+  "cpc": {
+   "label": "Cost per click",
+   "format": "currency",
+   "kind": "ratio",
+   "direction": "down",
+   "about": "Spend divided by summed clicks across all ad platforms. Plan: [Plan] Advertising.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "b4e58bf7-b9ee-4a85-9c0e-6dc2ba050042",
+     "title": "Ad Performance",
+     "fields": [
+      {
+       "name": "cpc",
+       "label": "CPC"
+      },
+      {
+       "name": "date",
+       "label": "Date"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "913ed09c-9a69-45e3-a305-1a201dc91ac7",
+     "title": "[Plan] Advertising",
+     "fields": [
+      {
+       "name": "ad_spend",
+       "label": "Planned Ad Spend"
+      },
+      {
+       "name": "clicks",
+       "label": "Planned Clicks"
+      }
+     ],
+     "via": "plan = summed planned ad spend ÷ summed planned clicks"
+    }
+   ],
+   "short": "CPC",
+   "window": {
+    "query": "ads_window",
+    "value": "cpc"
+   },
+   "series": {
+    "query": "ads_monthly",
+    "date": "date",
+    "value": "cpc"
+   },
+   "plan": {
+    "query": "plan_ads",
+    "date": "date",
+    "numerator": [
+     "ad_spend"
+    ],
+    "denominator": [
+     "clicks"
+    ]
+   }
+  },
+  "spend": {
+   "label": "Ad spend",
+   "format": "currency",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Spend across all seven ad platforms. Plan: [Plan] Advertising.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "c36e7a4e-e6c0-49ca-99f2-d8440d475363",
+     "title": "Unified Ad Spend",
+     "fields": [
+      {
+       "name": "spend",
+       "label": "Spend"
+      },
+      {
+       "name": "date",
+       "label": "Date"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "913ed09c-9a69-45e3-a305-1a201dc91ac7",
+     "title": "[Plan] Advertising",
+     "fields": [
+      {
+       "name": "ad_spend",
+       "label": "Planned Ad Spend"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "series": {
+    "query": "ads_daily",
+    "date": "date",
+    "value": "spend | SUM"
+   },
+   "plan": {
+    "query": "plan_ads",
+    "date": "date",
+    "value": "ad_spend"
+   }
+  },
+  "clicks": {
+   "label": "Clicks",
+   "format": "number",
+   "kind": "additive",
+   "direction": "up",
+   "about": "Paid clicks across all seven ad platforms. Plan: [Plan] Advertising.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "c36e7a4e-e6c0-49ca-99f2-d8440d475363",
+     "title": "Unified Ad Spend",
+     "fields": [
+      {
+       "name": "clicks",
+       "label": "Clicks"
+      },
+      {
+       "name": "date",
+       "label": "Date"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "913ed09c-9a69-45e3-a305-1a201dc91ac7",
+     "title": "[Plan] Advertising",
+     "fields": [
+      {
+       "name": "clicks",
+       "label": "Planned Clicks"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "series": {
+    "query": "ads_daily",
+    "date": "date",
+    "value": "clicks | SUM"
+   },
+   "plan": {
+    "query": "plan_ads",
+    "date": "date",
+    "value": "clicks"
+   }
+  },
+  "completion": {
+   "label": "Completion rate",
+   "format": "percent",
+   "kind": "ratio",
+   "direction": "up",
+   "about": "Share of orders neither cancelled nor returned, read on Orders alone. Plan: [Plan] Operations.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+     "title": "Orders",
+     "fields": [
+      {
+       "name": "completion_rate",
+       "label": "Completion Rate"
+      },
+      {
+       "name": "order_date",
+       "label": "Order Date"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "b2ba38b6-ab1f-4b48-b5aa-c84d21e307d9",
+     "title": "[Plan] Operations",
+     "fields": [
+      {
+       "name": "orders",
+       "label": "Planned Orders"
+      },
+      {
+       "name": "cancelled_orders",
+       "label": "Planned Cancelled Orders"
+      },
+      {
+       "name": "returned_orders",
+       "label": "Planned Returned Orders"
+      }
+     ],
+     "via": "plan = 1 − (cancelled + returned) ÷ orders, each summed"
+    }
+   ],
+   "short": "Completion",
+   "window": {
+    "query": "orders_window",
+    "value": "completion_rate"
+   },
+   "series": {
+    "query": "orders_monthly",
+    "date": "order_date",
+    "value": "completion_rate"
+   },
+   "plan": {
+    "query": "plan_ops",
+    "date": "date",
+    "numerator": [
+     "orders",
+     "-cancelled_orders",
+     "-returned_orders"
+    ],
+    "denominator": [
+     "orders"
+    ]
+   }
+  },
+  "cancelled": {
+   "label": "Cancelled orders",
+   "format": "number",
+   "kind": "additive",
+   "direction": "down",
+   "about": "Orders cancelled before dispatch. Plan: [Plan] Operations.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+     "title": "Orders",
+     "fields": [
+      {
+       "name": "orders_total",
+       "label": "Orders"
+      },
+      {
+       "name": "status",
+       "label": "Status"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "b2ba38b6-ab1f-4b48-b5aa-c84d21e307d9",
+     "title": "[Plan] Operations",
+     "fields": [
+      {
+       "name": "cancelled_orders",
+       "label": "Planned Cancelled Orders"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "short": "Cancelled",
+   "window": {
+    "query": "cancelled_window",
+    "value": "orders_total"
+   },
+   "plan": {
+    "query": "plan_ops",
+    "date": "date",
+    "value": "cancelled_orders"
+   }
+  },
+  "returned": {
+   "label": "Returned orders",
+   "format": "number",
+   "kind": "additive",
+   "direction": "down",
+   "about": "Orders sent back after delivery. Plan: [Plan] Operations.",
+   "sources": [
+    {
+     "role": "Fact",
+     "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+     "title": "Orders",
+     "fields": [
+      {
+       "name": "orders_total",
+       "label": "Orders"
+      },
+      {
+       "name": "status",
+       "label": "Status"
+      }
+     ]
+    },
+    {
+     "role": "Plan",
+     "data_mart_id": "b2ba38b6-ab1f-4b48-b5aa-c84d21e307d9",
+     "title": "[Plan] Operations",
+     "fields": [
+      {
+       "name": "returned_orders",
+       "label": "Planned Returned Orders"
+      }
+     ],
+     "via": "summed over the period's days"
+    }
+   ],
+   "short": "Returned",
+   "window": {
+    "query": "returned_window",
+    "value": "orders_total"
+   },
+   "plan": {
+    "query": "plan_ops",
+    "date": "date",
+    "value": "returned_orders"
+   }
+  }
+ },
+ "pages": [
+  {
+   "title": "Overview",
+   "components": [
+    {
+     "id": "kpis",
+     "type": "scorecards",
+     "metrics": [
+      "revenue",
+      "orders",
+      "conversion",
+      "roas",
+      "cpc",
+      "completion"
+     ]
+    },
+    {
+     "id": "rev-plan",
+     "type": "plan_vs_fact",
+     "metric": "revenue",
+     "mode": "monthly",
+     "span": 6,
+     "title": "Settled revenue: plan vs fact",
+     "tags": [
+      "Fact",
+      "Estimate"
+     ],
+     "description": "Bars: this year by order month, last year muted; dashed line: [Plan] Sales. Outlined bar: this month's forecast (month to date ÷ days elapsed × days in month)."
+    },
+    {
+     "id": "rev-cum",
+     "type": "plan_vs_fact",
+     "metric": "revenue",
+     "mode": "cumulative",
+     "span": 6,
+     "title": "Revenue to date vs plan",
+     "tags": [
+      "Fact",
+      "Estimate"
+     ],
+     "description": "Cumulative settled revenue this year against the cumulative plan; dashed tail: the full-year forecast."
+    },
+    {
+     "id": "drivers-top",
+     "type": "drivers",
+     "from": [
+      "by-channel",
+      "by-category",
+      "by-country"
+     ],
+     "top": 5,
+     "code": "TOP",
+     "span": 6,
+     "title": "Top 5 drivers of settled revenue",
+     "tags": [
+      "Fact",
+      "Estimate",
+      "Hypothesis"
+     ],
+     "description": "The values that moved this tab's numbers most against the comparison period. Claude writes what to do and what to check from these numbers each time they change."
+    }
+   ]
+  },
+  {
+   "title": "Sales",
+   "components": [
+    {
+     "id": "kpis-sales",
+     "type": "scorecards",
+     "metrics": [
+      "revenue",
+      "orders"
+     ]
+    },
+    {
+     "id": "orders-plan",
+     "type": "plan_vs_fact",
+     "metric": "orders",
+     "mode": "monthly",
+     "span": 6,
+     "title": "Orders: plan vs fact",
+     "tags": [
+      "Fact",
+      "Estimate"
+     ],
+     "description": "This year by month against the plan (dashed) and last year (muted)."
+    },
+    {
+     "id": "drivers-sales",
+     "type": "drivers",
+     "from": [
+      "by-category",
+      "by-country",
+      "by-segment"
+     ],
+     "top": 4,
+     "code": "SAL",
+     "span": 6,
+     "title": "Top drivers",
+     "tags": [
+      "Fact",
+      "Estimate",
+      "Hypothesis"
+     ],
+     "description": "The values that moved this tab's numbers most against the comparison period. Claude writes what to do and what to check from these numbers each time they change."
+    },
+    {
+     "id": "by-category",
+     "type": "breakdown",
+     "query": "rev_by_category",
+     "metric": "revenue",
+     "dimension": "products_e_commerce_product_category_e_commerce__category_name",
+     "dimension_label": "Category",
+     "value": "line_net_revenue | SUM",
+     "title": "Revenue by category",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+       "title": "Purchases",
+       "fields": [
+        {
+         "name": "line_net_revenue",
+         "label": "Item Net Revenue"
+        }
+       ]
+      },
+      {
+       "role": "Category · joined",
+       "data_mart_id": "f33bb078-1183-4951-8b8b-8010f7c91d3f",
+       "title": "Product Category",
+       "fields": [
+        {
+         "name": "category_name",
+         "label": "Category Name"
+        }
+       ],
+       "via": "Purchases → Products → Product Category"
+      },
+      {
+       "role": "Date · joined",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "order_date",
+         "label": "Order Date"
+        }
+       ],
+       "via": "joined to Purchases on order_id"
+      }
+     ],
+     "top": 8,
+     "description": "Order lines placed by their product's category: Purchases → Products → Product Category."
+    },
+    {
+     "id": "category-bridge",
+     "type": "waterfall",
+     "from": "by-category",
+     "span": 3,
+     "title": "Change by category",
+     "tags": [
+      "Fact",
+      "AI calc"
+     ],
+     "description": "Comparison total → each value's change → this period's total."
+    },
+    {
+     "id": "by-country",
+     "type": "breakdown",
+     "query": "rev_by_country",
+     "metric": "revenue",
+     "dimension": "orders_e_commerce_sessions_e_commerce_countries_e_commerce__country",
+     "dimension_label": "Country",
+     "value": "line_net_revenue | SUM",
+     "title": "Revenue by country",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+       "title": "Purchases",
+       "fields": [
+        {
+         "name": "line_net_revenue",
+         "label": "Item Net Revenue"
+        }
+       ]
+      },
+      {
+       "role": "Country · joined",
+       "data_mart_id": "bad7e127-2352-4663-8b68-cbd06a9c0eb7",
+       "title": "Countries",
+       "fields": [
+        {
+         "name": "country",
+         "label": "Country Name"
+        }
+       ],
+       "via": "Orders → Sessions → Countries"
+      },
+      {
+       "role": "Date · joined",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "order_date",
+         "label": "Order Date"
+        }
+       ],
+       "via": "joined to Purchases on order_id"
+      }
+     ],
+     "top": 8,
+     "description": "Order lines placed by the market of their order's session: Purchases → Orders → Sessions → Countries."
+    },
+    {
+     "id": "by-segment",
+     "type": "breakdown",
+     "query": "rev_by_segment",
+     "metric": "revenue",
+     "dimension": "orders_e_commerce_customers_e_commerce__customer_segment",
+     "dimension_label": "Segment",
+     "value": "line_net_revenue | SUM",
+     "title": "Revenue by customer segment",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+       "title": "Purchases",
+       "fields": [
+        {
+         "name": "line_net_revenue",
+         "label": "Item Net Revenue"
+        }
+       ]
+      },
+      {
+       "role": "Segment · joined",
+       "data_mart_id": "f5035458-0b6e-443a-afdd-c05d03095292",
+       "title": "Customers",
+       "fields": [
+        {
+         "name": "customer_segment",
+         "label": "Customer Segment"
+        }
+       ],
+       "via": "Purchases → Orders → Customers"
+      },
+      {
+       "role": "Date · joined",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "order_date",
+         "label": "Order Date"
+        }
+       ],
+       "via": "joined to Purchases on order_id"
+      }
+     ],
+     "top": 8,
+     "description": "Order lines placed by the segment of the customer who ordered: Purchases → Orders → Customers."
+    },
+    {
+     "id": "category-table",
+     "type": "table",
+     "from": "by-category",
+     "span": 6,
+     "title": "Categories",
+     "tags": [
+      "Fact",
+      "AI calc"
+     ],
+     "description": "OWOX totals per value; change and share worked out in the page. Click a column to sort."
+    }
+   ]
+  },
+  {
+   "title": "Marketing",
+   "components": [
+    {
+     "id": "kpis-mkt",
+     "type": "scorecards",
+     "metrics": [
+      "roas",
+      "paid_revenue",
+      "paid_sessions"
+     ]
+    },
+    {
+     "id": "roas-trend",
+     "type": "trend",
+     "metric": "roas",
+     "span": 3,
+     "title": "Store ROAS",
+     "tags": [
+      "Fact"
+     ],
+     "description": "OWOX computes the value for each month; dashed line: the plan."
+    },
+    {
+     "id": "paid-rev-plan",
+     "type": "plan_vs_fact",
+     "metric": "paid_revenue",
+     "mode": "monthly",
+     "span": 3,
+     "title": "Paid revenue: plan vs fact",
+     "tags": [
+      "Fact",
+      "Estimate"
+     ],
+     "description": "This year by month against the plan (dashed) and last year (muted)."
+    },
+    {
+     "id": "drivers-mkt",
+     "type": "drivers",
+     "from": [
+      "by-channel",
+      "by-source"
+     ],
+     "top": 4,
+     "code": "MKT",
+     "span": 6,
+     "title": "Top drivers",
+     "tags": [
+      "Fact",
+      "Estimate",
+      "Hypothesis"
+     ],
+     "description": "The values that moved this tab's numbers most against the comparison period. Claude writes what to do and what to check from these numbers each time they change."
+    },
+    {
+     "id": "by-channel",
+     "type": "breakdown",
+     "query": "rev_by_channel",
+     "metric": "revenue",
+     "dimension": "orders_e_commerce_sessions_e_commerce_traffic_sources_e_commerce__channel_grouping",
+     "dimension_label": "Channel",
+     "value": "line_net_revenue | SUM",
+     "title": "Revenue by channel",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+       "title": "Purchases",
+       "fields": [
+        {
+         "name": "line_net_revenue",
+         "label": "Item Net Revenue"
+        }
+       ]
+      },
+      {
+       "role": "Channel · joined",
+       "data_mart_id": "61b3c045-b334-440d-9913-bf52bc622af4",
+       "title": "Traffic Sources",
+       "fields": [
+        {
+         "name": "channel_grouping",
+         "label": "Channel Grouping"
+        }
+       ],
+       "via": "Orders → Sessions → Traffic Sources"
+      },
+      {
+       "role": "Date · joined",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "order_date",
+         "label": "Order Date"
+        }
+       ],
+       "via": "joined to Purchases on order_id"
+      }
+     ],
+     "top": 8,
+     "description": "Order lines placed by the channel of their order's session: Purchases → Orders → Sessions → Traffic Sources."
+    },
+    {
+     "id": "channel-bridge",
+     "type": "waterfall",
+     "from": "by-channel",
+     "span": 3,
+     "title": "Change by channel",
+     "tags": [
+      "Fact",
+      "AI calc"
+     ],
+     "description": "Comparison total → each value's change → this period's total."
+    },
+    {
+     "id": "by-source",
+     "type": "breakdown",
+     "query": "rev_by_source",
+     "metric": "revenue",
+     "dimension": "orders_e_commerce_sessions_e_commerce__source",
+     "dimension_label": "Source",
+     "value": "line_net_revenue | SUM",
+     "title": "Revenue by visit source",
+     "span": 6,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+       "title": "Purchases",
+       "fields": [
+        {
+         "name": "line_net_revenue",
+         "label": "Item Net Revenue"
+        }
+       ]
+      },
+      {
+       "role": "Source · joined",
+       "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+       "title": "Sessions",
+       "fields": [
+        {
+         "name": "source",
+         "label": "Source"
+        }
+       ],
+       "via": "Purchases → Orders → Sessions on session_id"
+      },
+      {
+       "role": "Date · joined",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "order_date",
+         "label": "Order Date"
+        }
+       ],
+       "via": "joined to Purchases on order_id"
+      }
+     ],
+     "top": 8,
+     "description": "Order lines placed by the source of their order's session."
+    }
+   ]
+  },
+  {
+   "title": "Advertising",
+   "components": [
+    {
+     "id": "kpis-ads",
+     "type": "scorecards",
+     "metrics": [
+      "cpc",
+      "spend",
+      "clicks"
+     ]
+    },
+    {
+     "id": "cpc-trend",
+     "type": "trend",
+     "metric": "cpc",
+     "span": 3,
+     "title": "Cost per click",
+     "tags": [
+      "Fact"
+     ],
+     "description": "OWOX computes the value for each month; dashed line: the plan."
+    },
+    {
+     "id": "spend-plan",
+     "type": "plan_vs_fact",
+     "metric": "spend",
+     "mode": "monthly",
+     "span": 3,
+     "title": "Ad spend: plan vs fact",
+     "tags": [
+      "Fact",
+      "Estimate"
+     ],
+     "description": "This year by month against the plan (dashed) and last year (muted)."
+    },
+    {
+     "id": "drivers-ads",
+     "type": "drivers",
+     "from": [
+      "clicks-by-platform"
+     ],
+     "top": 4,
+     "code": "ADV",
+     "span": 6,
+     "title": "Top drivers",
+     "tags": [
+      "Fact",
+      "Estimate",
+      "Hypothesis"
+     ],
+     "description": "The values that moved this tab's numbers most against the comparison period. Claude writes what to do and what to check from these numbers each time they change."
+    },
+    {
+     "id": "spend-by-platform",
+     "type": "breakdown",
+     "query": "ads_by_source",
+     "metric": "spend",
+     "dimension": "source",
+     "dimension_label": "Platform",
+     "value": "spend | SUM",
+     "title": "Ad spend by platform",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "c36e7a4e-e6c0-49ca-99f2-d8440d475363",
+       "title": "Unified Ad Spend",
+       "fields": [
+        {
+         "name": "spend",
+         "label": "Spend"
+        },
+        {
+         "name": "source",
+         "label": "Source"
+        }
+       ]
+      }
+     ],
+     "top": 8
+    },
+    {
+     "id": "clicks-by-platform",
+     "type": "breakdown",
+     "query": "ads_by_source",
+     "metric": "clicks",
+     "dimension": "source",
+     "dimension_label": "Platform",
+     "value": "clicks | SUM",
+     "title": "Clicks by platform",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "c36e7a4e-e6c0-49ca-99f2-d8440d475363",
+       "title": "Unified Ad Spend",
+       "fields": [
+        {
+         "name": "clicks",
+         "label": "Clicks"
+        },
+        {
+         "name": "source",
+         "label": "Source"
+        }
+       ]
+      }
+     ],
+     "top": 8
+    },
+    {
+     "id": "cpc-by-platform",
+     "type": "breakdown",
+     "query": "cpc_by_source",
+     "metric": "cpc",
+     "dimension": "source",
+     "dimension_label": "Platform",
+     "value": "cpc",
+     "title": "CPC by platform",
+     "span": 6,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "b4e58bf7-b9ee-4a85-9c0e-6dc2ba050042",
+       "title": "Ad Performance",
+       "fields": [
+        {
+         "name": "cpc",
+         "label": "CPC"
+        },
+        {
+         "name": "source",
+         "label": "Source"
+        }
+       ]
+      }
+     ],
+     "top": 8,
+     "ratio": true
+    }
+   ]
+  },
+  {
+   "title": "Product",
+   "components": [
+    {
+     "id": "kpis-prod",
+     "type": "scorecards",
+     "metrics": [
+      "conversion",
+      "sessions",
+      "site_orders"
+     ]
+    },
+    {
+     "id": "conv-trend",
+     "type": "trend",
+     "metric": "conversion",
+     "span": 3,
+     "title": "Conversion rate",
+     "tags": [
+      "Fact"
+     ],
+     "description": "OWOX computes the value for each month; dashed line: the plan."
+    },
+    {
+     "id": "sessions-plan",
+     "type": "plan_vs_fact",
+     "metric": "sessions",
+     "mode": "monthly",
+     "span": 3,
+     "title": "Sessions: plan vs fact",
+     "tags": [
+      "Fact",
+      "Estimate"
+     ],
+     "description": "This year by month against the plan (dashed) and last year (muted)."
+    },
+    {
+     "id": "drivers-prod",
+     "type": "drivers",
+     "from": [
+      "by-device",
+      "by-traffic-type"
+     ],
+     "top": 4,
+     "code": "PRD",
+     "span": 6,
+     "title": "Top drivers",
+     "tags": [
+      "Fact",
+      "Estimate",
+      "Hypothesis"
+     ],
+     "description": "The values that moved this tab's numbers most against the comparison period. Claude writes what to do and what to check from these numbers each time they change."
+    },
+    {
+     "id": "by-device",
+     "type": "breakdown",
+     "query": "sessions_by_device",
+     "metric": "sessions",
+     "dimension": "device_category",
+     "dimension_label": "Device",
+     "value": "sessions_count",
+     "title": "Sessions by device",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+       "title": "Sessions",
+       "fields": [
+        {
+         "name": "sessions_count",
+         "label": "Sessions"
+        },
+        {
+         "name": "device_category",
+         "label": "Device Category"
+        }
+       ]
+      }
+     ],
+     "top": 8
+    },
+    {
+     "id": "conv-by-device",
+     "type": "breakdown",
+     "query": "sessions_by_device",
+     "metric": "conversion",
+     "dimension": "device_category",
+     "dimension_label": "Device",
+     "value": "conversion_rate",
+     "title": "Conversion by device",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+       "title": "Sessions",
+       "fields": [
+        {
+         "name": "conversion_rate",
+         "label": "Conversion Rate"
+        },
+        {
+         "name": "device_category",
+         "label": "Device Category"
+        }
+       ]
+      }
+     ],
+     "top": 8,
+     "ratio": true
+    },
+    {
+     "id": "by-traffic-type",
+     "type": "breakdown",
+     "query": "sessions_by_type",
+     "metric": "sessions",
+     "dimension": "traffic_type",
+     "dimension_label": "Traffic type",
+     "value": "sessions_count",
+     "title": "Sessions by traffic type",
+     "span": 6,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "22a66e81-1ce3-4c0a-8ead-3a154df490ab",
+       "title": "Sessions",
+       "fields": [
+        {
+         "name": "sessions_count",
+         "label": "Sessions"
+        },
+        {
+         "name": "traffic_type",
+         "label": "Traffic Type"
+        }
+       ]
+      }
+     ],
+     "top": 8
+    }
+   ]
+  },
+  {
+   "title": "Operations",
+   "components": [
+    {
+     "id": "kpis-ops",
+     "type": "scorecards",
+     "metrics": [
+      "completion",
+      "orders",
+      "cancelled",
+      "returned"
+     ]
+    },
+    {
+     "id": "completion-trend",
+     "type": "trend",
+     "metric": "completion",
+     "span": 6,
+     "title": "Completion rate",
+     "tags": [
+      "Fact"
+     ],
+     "description": "OWOX computes the value for each month; dashed line: the plan."
+    },
+    {
+     "id": "drivers-ops",
+     "type": "drivers",
+     "from": [
+      "by-status"
+     ],
+     "top": 3,
+     "code": "OPS",
+     "span": 6,
+     "title": "Top drivers",
+     "tags": [
+      "Fact",
+      "Estimate",
+      "Hypothesis"
+     ],
+     "description": "The values that moved this tab's numbers most against the comparison period. Claude writes what to do and what to check from these numbers each time they change."
+    },
+    {
+     "id": "by-status",
+     "type": "breakdown",
+     "query": "orders_by_status",
+     "metric": "orders",
+     "dimension": "status",
+     "dimension_label": "Status",
+     "value": "orders_total",
+     "title": "Orders by status",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "orders_total",
+         "label": "Orders"
+        },
+        {
+         "name": "status",
+         "label": "Status"
+        }
+       ]
+      }
+     ],
+     "top": 8
+    },
+    {
+     "id": "status-bridge",
+     "type": "waterfall",
+     "from": "by-status",
+     "span": 3,
+     "title": "Change by status",
+     "tags": [
+      "Fact",
+      "AI calc"
+     ],
+     "description": "Comparison total → each value's change → this period's total."
+    }
+   ]
+  },
+  {
+   "title": "Finance",
+   "components": [
+    {
+     "id": "kpis-fin",
+     "type": "scorecards",
+     "metrics": [
+      "revenue",
+      "booked",
+      "margin"
+     ]
+    },
+    {
+     "id": "booked-plan",
+     "type": "plan_vs_fact",
+     "metric": "booked",
+     "mode": "monthly",
+     "span": 3,
+     "title": "Booked revenue: plan vs fact",
+     "tags": [
+      "Fact",
+      "Estimate"
+     ],
+     "description": "This year by month against the plan (dashed) and last year (muted)."
+    },
+    {
+     "id": "margin-trend",
+     "type": "trend",
+     "metric": "margin",
+     "span": 3,
+     "title": "Net margin",
+     "tags": [
+      "Fact"
+     ],
+     "description": "OWOX computes net margin for each month. The project has no plan for it."
+    },
+    {
+     "id": "drivers-fin",
+     "type": "drivers",
+     "from": [
+      "by-segment"
+     ],
+     "top": 3,
+     "code": "FIN",
+     "span": 6,
+     "title": "Top drivers",
+     "tags": [
+      "Fact",
+      "Estimate",
+      "Hypothesis"
+     ],
+     "description": "The values that moved this tab's numbers most against the comparison period. Claude writes what to do and what to check from these numbers each time they change."
+    },
+    {
+     "id": "by-segment",
+     "type": "breakdown",
+     "query": "rev_by_segment",
+     "metric": "revenue",
+     "dimension": "orders_e_commerce_customers_e_commerce__customer_segment",
+     "dimension_label": "Segment",
+     "value": "line_net_revenue | SUM",
+     "title": "Revenue by customer segment",
+     "span": 6,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+       "title": "Purchases",
+       "fields": [
+        {
+         "name": "line_net_revenue",
+         "label": "Item Net Revenue"
+        }
+       ]
+      },
+      {
+       "role": "Segment · joined",
+       "data_mart_id": "f5035458-0b6e-443a-afdd-c05d03095292",
+       "title": "Customers",
+       "fields": [
+        {
+         "name": "customer_segment",
+         "label": "Customer Segment"
+        }
+       ],
+       "via": "Purchases → Orders → Customers"
+      },
+      {
+       "role": "Date · joined",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "order_date",
+         "label": "Order Date"
+        }
+       ],
+       "via": "joined to Purchases on order_id"
+      }
+     ],
+     "top": 8,
+     "description": "Order lines placed by the segment of the customer who ordered: Purchases → Orders → Customers."
+    }
+   ]
+  },
+  {
+   "title": "Head of Marketing",
+   "components": [
+    {
+     "id": "margin-by-category",
+     "type": "breakdown",
+     "query": "margin_by_category",
+     "metric": "margin",
+     "dimension": "products_e_commerce_product_category_e_commerce__category_name",
+     "dimension_label": "Category",
+     "value": "net_margin_pct",
+     "title": "Net margin vs target margin by category",
+     "span": 6,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+       "title": "Purchases",
+       "fields": [
+        {
+         "name": "net_margin_pct",
+         "label": "Net Margin %"
+        }
+       ]
+      },
+      {
+       "role": "Target · joined",
+       "data_mart_id": "f33bb078-1183-4951-8b8b-8010f7c91d3f",
+       "title": "Product Category",
+       "fields": [
+        {
+         "name": "category_name",
+         "label": "Category Name"
+        },
+        {
+         "name": "target_margin",
+         "label": "Target Margin"
+        }
+       ],
+       "via": "Purchases → Products → Product Category"
+      },
+      {
+       "role": "Date · joined",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "order_date",
+         "label": "Order Date"
+        }
+       ],
+       "via": "joined to Purchases on order_id"
+      }
+     ],
+     "top": 8,
+     "ratio": true,
+     "target_value": "products_e_commerce_product_category_e_commerce__target_margin | MAX",
+     "description": "Bars: net margin OWOX computes per category for the period; dashed tick: the category's target margin from Product Category."
+    },
+    {
+     "id": "drivers-hom",
+     "type": "drivers",
+     "from": [
+      "by-group"
+     ],
+     "top": 3,
+     "code": "HOM",
+     "span": 6,
+     "title": "Top drivers",
+     "tags": [
+      "Fact",
+      "Estimate",
+      "Hypothesis"
+     ],
+     "description": "The values that moved this tab's numbers most against the comparison period. Claude writes what to do and what to check from these numbers each time they change."
+    },
+    {
+     "id": "by-group",
+     "type": "breakdown",
+     "query": "rev_by_group",
+     "metric": "revenue",
+     "dimension": "products_e_commerce_product_category_e_commerce__category_group",
+     "dimension_label": "Category group",
+     "value": "line_net_revenue | SUM",
+     "title": "Revenue by category group",
+     "span": 3,
+     "tags": [
+      "Fact"
+     ],
+     "sources": [
+      {
+       "role": "Fact",
+       "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75",
+       "title": "Purchases",
+       "fields": [
+        {
+         "name": "line_net_revenue",
+         "label": "Item Net Revenue"
+        }
+       ]
+      },
+      {
+       "role": "Group · joined",
+       "data_mart_id": "f33bb078-1183-4951-8b8b-8010f7c91d3f",
+       "title": "Product Category",
+       "fields": [
+        {
+         "name": "category_group",
+         "label": "Category Group"
+        }
+       ],
+       "via": "Purchases → Products → Product Category"
+      },
+      {
+       "role": "Date · joined",
+       "data_mart_id": "d565c4cb-5f68-480e-917d-c1709b59ae02",
+       "title": "Orders",
+       "fields": [
+        {
+         "name": "order_date",
+         "label": "Order Date"
+        }
+       ],
+       "via": "joined to Purchases on order_id"
+      }
+     ],
+     "top": 8,
+     "description": "Order lines placed by their category's group."
+    },
+    {
+     "id": "group-bridge",
+     "type": "waterfall",
+     "from": "by-group",
+     "span": 3,
+     "title": "Change by category group",
+     "tags": [
+      "Fact",
+      "AI calc"
+     ],
+     "description": "Comparison total → each value's change → this period's total."
+    }
+   ]
+  },
+  {
+   "title": "Data",
+   "components": [
+    {
+     "id": "data",
+     "type": "data",
+     "title": "Data behind this dashboard",
+     "span": 6
+    },
+    {
+     "id": "notes",
+     "type": "notes",
+     "items": [
+      "The page reads through yesterday: today's orders are still arriving.",
+      "Ad spend, clicks and paid traffic are loaded once a week, so the latest days may have none yet; plan comparisons for those metrics undercount the last days.",
+      "Rates (conversion, ROAS, CPC, completion, net margin) are computed by OWOX for the whole period, never averaged across months.",
+      "A period's plan is the sum of the plan's days in it. A rate's plan is the ratio of planned sums, as each [Plan] Data Mart's description says.",
+      "Store ROAS matches spend to the orders of the sessions it bought. The platforms' own claim (Platform ROAS in Unified Ad Spend) runs about a third higher.",
+      "Head of Marketing has no plan: its platform reports live in four warehouses, so no single query reaches all of them. Its tab shows margin against each category's target margin."
+     ]
+    }
+   ]
+  }
+ ],
+ "improvements": [
+  {
+   "text": "Finance plans the settled share (settled ÷ booked revenue), but no field holds it. Add a calculated field Settled Share to Purchases: the Finance tab then shows its critical number against [Plan] Finance.",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75"
+  },
+  {
+   "text": "Sales plans average order value, but it spans Purchases and Orders. Add a calculated field Average Order Value to Purchases (settled revenue ÷ distinct orders): the Sales tab then shows it against plan.",
+   "data_mart_id": "0212efac-2c7d-4bcb-aaf2-055229de4b75"
+  },
+  {
+   "text": "The [Plan] Data Marts store the date as text, so they cannot be joined to the facts. A date field lets every plan join to its fact by day.",
+   "data_mart_id": "33463315-0d40-4e45-b64d-b1bcab27c341",
+   "field": "date"
+  },
+  {
+   "text": "Head of Marketing has no plan. A plan for spend by platform, or a target for net margin, gives that tab plan vs fact and status."
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+*.pyc
+# dashboards built from the skill keep their config next to the user's work, never here
+config.json
+dashboard.html

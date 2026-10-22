@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "owox-data-marts": { "type": "http", "url": "https://mcp.owox.com/mcp" }
+  }
+}
