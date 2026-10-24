@@ -84,6 +84,7 @@ button { font: inherit; }
 .btn--ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--border-default); }
 .select { height: 40px; padding: 0 12px; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius); font: 400 14px var(--font-body); }
 .asof { text-align: right; margin: 0; color: var(--text-muted); }
+.select:disabled { opacity: .6; cursor: default; }
 .summary { margin: 0; padding: 14px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius); color: var(--text-primary); font-size: 16.5px; }
 .summary b { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
 .summary p { margin: 0; } .summary p + p { margin-top: 6px; }
@@ -1658,7 +1659,10 @@ __THEME_CSS__
   const cmpSel = $("compare");
   const showCompare = () => {
     const w = winOf(period, anchor || D.today());
-    cmpSel.hidden = !CFG.anchor || !hasBoth(period);
+    // Always visible next to the period, so viewers find it; year to date only compares with last year.
+    cmpSel.hidden = !CFG.anchor;
+    cmpSel.disabled = !hasBoth(period);
+    cmpSel.title = hasBoth(period) ? "" : "Year to date always compares with the same dates last year";
     cmpSel.value = w.cmpShort === "last year" ? "last_year" : "previous";
   };
   showCompare();
