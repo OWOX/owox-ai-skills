@@ -12,6 +12,7 @@ These rules come from dashboards built with OWOX customers. The engine already i
   - `last_week` — the last full Mon–Sun week vs the week before it.
   - `last_month`, `last_quarter` — the last full calendar month or quarter vs the same one last year.
   - `last_year` — the last full calendar year vs the year before.
+  - **Compare with** (a second switch next to the period): *the period before* (the month before, the quarter before, the 28 days before) or *the same period last year*, for every period except year to date, which always compares with last year. Set the opening choice with `periods.compare` when the user asks for it (e.g. "last month vs the month before").
   - Month to date is not a switcher option: it drives the month forecast only (`mtd` stays available if a user asks for it).
 - The page loads daily rows from Jan 1 two years before the anchor's year, one call per calendar year (a daily range passes the 1,000-row limit otherwise), so every period and its comparison come from the same few calls.
 

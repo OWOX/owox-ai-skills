@@ -137,6 +137,8 @@ def validate(cfg):
     opts = (cfg.get("periods") or {}).get("options") or []
     for p in opts:
         need(p in PERIODS, f"periods.options: unknown period '{p}'")
+    cmp = (cfg.get("periods") or {}).get("compare")
+    need(cmp in (None, "previous", "last_year"), "periods.compare: previous (the period before) or last_year (the same period last year); leave it out for each period's own comparison")
     pages = cfg.get("pages") or []
     need(pages, "pages: at least one page is required")
     ids = {}

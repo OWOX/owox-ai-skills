@@ -12,7 +12,7 @@
 | `project` | yes | `{ "id", "title" }` from `get_project_context`. The page warns a viewer whose connector is signed in to another project. |
 | `app_url` | no | Default `https://app.owox.com`. |
 | `currency`, `locale`, `time_zone` | no | Defaults `USD`, `en-US`, `UTC`. Freshness times are shown in `time_zone`. |
-| `periods` | no | `{ "default": "ytd" }`. Leave `options` out to get the full switcher from `method.md`; set it only when the user asks for fewer periods. |
+| `periods` | no | `{ "default": "ytd" }`. Leave `options` out to get the full switcher from `method.md`; set it only when the user asks for fewer periods. `compare`: `previous` (the period before: the month before, the quarter before, the 28 days before) or `last_year` (the same period last year); leave it out for each period's own comparison. The page also has a **Compare with** switch next to the period. |
 | `primary_metric` | recommended | The metric the business is run by (from the Project description). Drivers of it say so; other metrics convert to it only through `to_primary`. |
 | `summary_metrics` | no | Metric ids for the sentence summary at the top. |
 | `anchor` | when any query has a date (`range` or `window`) | `{ "query": <static query id>, "value": <column with the max date, e.g. "order_date \| MAX"> }`. |

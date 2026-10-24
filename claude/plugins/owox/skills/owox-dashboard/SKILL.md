@@ -9,6 +9,15 @@ You build a dashboard page that reads OWOX Data Marts live. The page is a fixed 
 
 Work in this order. Do not skip the questions, and do not publish a query you have not run once yourself.
 
+## 0. Check the plugin is complete (before anything else)
+
+This skill's folder must hold `assets/dashboard.html` (the page engine) and `scripts/build_page.py`. Check both exist before you read the project or ask anything. If either is missing, the installed copy is outdated or broken: stop and tell the user, in one short message, how to update it:
+
+- **claude.ai** (web or desktop app): Customize → Plugins → OWOX → **Update**. If the plugin came from the organization's library, the organization's Owner uploads the current version there (Organization settings → Plugins & skills → the plugin → Upload new version), from https://github.com/OWOX/owox-ai-skills.
+- **Claude Code**: `/plugin update owox@owox` in the chat, or from a terminal `claude plugin update owox@owox`; then start a new session.
+
+Never offer to build the page by hand and never write chart code yourself: a page without the engine has no live refresh, no tabs, no export and no run log, so it is not this dashboard.
+
 **Any OWOX project qualifies.** Many have no Project description, no contexts, no plan, no field descriptions, or Data Marts that are not joined. Build the best dashboard the project's data allows, say plainly what that leaves out, and show the user what to add to get more (step 6). Never refuse because the model is thin, and never fill a gap with guesses.
 
 ## 1. Read the project (no questions yet)
@@ -21,13 +30,15 @@ Use the OWOX tools on the connector the user means (if several OWOX connectors a
 4. Keep a short list of **model gaps** as you read: no Project description; no contexts; no plan; Data Marts without descriptions or with undescribed fields; Data Marts that should be joined but are not (two Data Marts sharing a key such as `order_id` or `customer_id`, with no join between them); ratios the business needs that exist only as two raw fields (no calculated field); no date field on a Data Mart that tracks activity; a level (ARR, active customers, a balance) or a running-total plan whose description does not say so. Step 6 turns it into advice.
 5. Note the OWOX connector's **display name** exactly as claude.ai shows it in Settings → Connectors. The page addresses the connector by that name, and a published page can only reach claude.ai connectors. In Claude Code the plugin's own `owox-data-marts` server answers in chat, but the page must name the claude.ai connector: load the `artifact-capabilities` skill, whose connector list maps each `mcp__<id>__` prefix to its claude.ai name (load `artifact-design` too before publishing). If the user has OWOX only in Claude Code, ask them to add OWOX in claude.ai Settings → Connectors first.
 
-## 2. Ask up to four questions in one message
+## 2. Ask up to four questions, the first one alone
 
-Ask them together, each with concrete options taken from what you just read, at most four options each (the client's question tool takes four questions of four options; when there are more contexts than options, group related ones, such as "Marketing + Advertising"). Keep each to one line plus options.
+Ask question 1 on its own and wait for the answer. Then ask questions 2–4 together, with options built from that answer: the breakdowns, periods and plan data that fit what the user chose, including anything they typed under *Other* (an answer typed under *Other* is a full answer: build on it, never ask it again). Each question gets concrete options taken from what you read, at most four options each (when there are more contexts than options, group related ones, such as "Marketing + Advertising"). Keep each to one line plus options.
+
+**Write options in plain words, without abbreviations:** "vs the same period last year", "vs the month before", "quarter to date"; never LY, YoY, MoM, QTD, WoW or similar.
 
 1. **What should this dashboard help you decide?** Offer the contexts with their critical number and plan (e.g. "Sales: revenue vs its plan", "Marketing: ROAS vs its plan"), a text target when a context has no plan; with no contexts, offer the main metrics the Data Marts hold (e.g. "Revenue and orders from Orders", "Spend and clicks from Ads"). Always add **"Not sure: build a business review"**: many users do not know which question to ask, and this option means you take the project's key metric from the Project description (or the most central Data Mart) and every context that has a plan, without asking further. Multi-select.
 2. **What should it make you notice?** The breakdowns the data allows (channel, category, country, segment: native fields, or joined ones when joins exist), thresholds, anything to leave out (e.g. "exclude test orders"). Multi-select.
-3. **Which period opens by default?** Year to date vs last year (recommended), last 28 days vs the 28 before, last full month vs the same month last year, last full quarter. Every other period stays in the page's switcher. Say what plan data you found: "plan from Data Mart X", "targets only, from the contexts", or "no plan found".
+3. **Which period opens by default?** Year to date vs the same dates last year (recommended), last 28 days vs the 28 days before, last full month vs the month before, last full month vs the same month last year. Every period can also be compared with the period before or with the same period last year on the page (*Compare with*); set the opening comparison with `periods.compare`. Every other period stays in the page's switcher. Say what plan data you found: "plan from Data Mart X", "targets only, from the contexts", or "no plan found".
 4. **Design.** If the Project description names a design system, use it and ask only to confirm: "I'll use <name>; OK?". Otherwise ask for the company website, never for a design system: "What's your company website? I'll take your colors, fonts and logo from it. Or reply *default* for the OWOX look." No answer, or *default*: the OWOX look with the OWOX app icon.
 
 Who will open it (only the user, or colleagues) is a fifth question only when the request does not say; otherwise assume colleagues and explain access in the hand-over. If the user answers only some, use the defaults for the rest and say so in one line.
@@ -57,7 +68,7 @@ Read `references/method.md` before this step. In short:
 1. Run every query once with `query_data_mart`, with the same input the page will send, at most three or four at a time (bigger bursts fail with "server isn't responding"). Add the date filter the page would add, for a small sample: a daily `range` query over the last full month; a monthly `range` query over its full range; a `window` query over year to date; a plan query with `limit: 31` (read `totals` for the whole plan). Check the column names in `column_metadata` (an aggregated field is named `field | SUM`), the row count against `limit`, and that the numbers are plausible. Fix and re-run anything wrong.
    Then check how far back each daily Data Mart goes: one `MIN` of its date field. The page loads from Jan 1 two years back; a Data Mart that starts later shows no comparison for the oldest periods, which belongs in the notes.
 2. Find the anchor: `MAX` of the primary Data Mart's date field (a `static` query). The page reads through the last complete day. A Data Mart whose data ends earlier (ad spend loaded weekly) undercounts the last days against the anchor: say so in the notes.
-3. Write the config by `references/config.md`. **Every chart gets Export to Google Sheets**: scorecards, plan vs fact, trends, breakdowns, waterfalls, tables and drivers all carry the icon by default; never set `export: false` unless the user asks for it. Start from `examples/demo-ecommerce.json`; change everything project-specific. Save it where the user can find it again (a folder `owox-dashboards/<project>-<slug>/` inside the current working folder; the logo file, if any, goes into the same folder) and say where in the hand-over: later changes start from that file. Every block gets: a title, a one-line description with Fact / Estimate / AI calc / Hypothesis tags, and `sources` listing each Data Mart with its fields and the join path (`via`).
+3. Write the config by `references/config.md`. **Every chart gets Export to Google Sheets**: scorecards, plan vs fact, trends, breakdowns, waterfalls, tables and drivers all carry the icon by default; never set `export: false` unless the user asks for it. Start from `examples/demo-ecommerce.json`; change everything project-specific. Save it where the user can find it again: a folder `owox-dashboards/<project>-<slug>/` inside the current working folder (the logo file, if any, goes into the same folder). Before you write it, tell the user in one line what you save and why ("I'll save the dashboard's config to ./owox-dashboards/… so you can change or rebuild it later; it holds queries and layout, no data"). Never write into the home folder or anywhere the user did not open, and say where it is in the hand-over: later changes start from that file. Every block gets: a title, a one-line description with Fact / Estimate / AI calc / Hypothesis tags, and `sources` listing each Data Mart with its fields and the join path (`via`).
 4. Apply the design: `references/design.md` (default tokens, or tokens taken from the user's design system or website).
 
 ## 5. Build and publish
@@ -74,7 +85,7 @@ Read `references/method.md` before this step. In short:
 
 ## 6. Show the user how to get more
 
-Close the hand-over with **"Get more from this dashboard"**: at most five concrete steps from your model-gap list, each naming the Data Mart or context, what to add, and what it unlocks on this dashboard. For example:
+Close the hand-over with **"Get more from this dashboard"**: at most five concrete steps from your model-gap list, each naming the exact Data Mart (and field, when there is one) or context, what to add, and what it unlocks on this dashboard. Every step must come from something you saw while reading the project: a missing join between two Data Marts you queried, a field without a description you used, a plan the contexts lack, a block you could not build. Prefer the steps that unlock a block the user asked for and could not get (for example, drivers that need a finer breakdown: "Orders has no product field, so What moved the share can only split by channel; add product_id to Orders, or join Orders to Order Items"). Never give generic advice that would fit any project. For example:
 
 - "Write a plan for revenue (a Data Mart with a date and a planned value per day or month) and name it in a context: the cards then show plan vs fact and on-track status."
 - "Join Orders to Sessions on `session_id`: revenue can then be broken down by channel."
@@ -90,6 +101,7 @@ Open the saved config, edit, rebuild, publish to the same artifact (same file pa
 
 ## Never
 
+- Build the page without `assets/dashboard.html`, or write chart code yourself.
 - Paste rows or numbers from your own calls into the page or the config.
 - Query Data Marts outside the user's request, or personal fields (emails, names) nobody asked for.
 - Show a ratio averaged across months, a level (snapshot) summed over days, a metric no Data Mart defines, or a target nobody wrote.

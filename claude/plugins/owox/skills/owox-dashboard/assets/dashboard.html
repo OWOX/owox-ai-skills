@@ -223,6 +223,7 @@ __THEME_CSS__
     </div>
     <div class="controls__row">
       <select class="select" id="period" aria-label="Period"></select>
+      <select class="select" id="compare" aria-label="Compare with" hidden><option value="previous">vs the period before</option><option value="last_year">vs the same period last year</option></select>
       <button class="btn" id="refresh" type="button" disabled>Refresh data</button>
     </div>
     <p class="mono progress" id="progress" hidden></p>
@@ -309,6 +310,30 @@ __THEME_CSS__
   };
   const periodKeys = ((CFG.periods && CFG.periods.options) || ["ytd", "last_365_days", "last_28_days", "last_7_days", "last_week", "last_month", "last_quarter", "last_year"]).filter((k) => PERIODS[k]);
   let period = (CFG.periods && CFG.periods.default && PERIODS[CFG.periods.default]) ? CFG.periods.default : periodKeys[0];
+  // What a period is compared with. Each period has its own default (the 7 days before, the same month last year);
+  // the viewer can switch to "the period before" or "the same period last year" for any period that has both.
+  let compare = (CFG.periods && /^(previous|last_year)$/.test(CFG.periods.compare || "")) ? CFG.periods.compare : null;
+  function winOf(key, a) {
+    const w = PERIODS[key].win(a);
+    const own = w.cmpShort === "last year" ? "last_year" : "previous";
+    if (!compare || compare === own) return w;
+    if (compare === "last_year") {
+      if (key === "last_year") return w;
+      return Object.assign({}, w, { cmp: [D.shiftYears(w.cur[0], -1), D.shiftYears(w.cur[1], -1)], cmpLabel: "the same dates last year", cmpShort: "last year" });
+    }
+    const y = D.year(w.cur[0]), m = D.month(w.cur[0]);
+    if (key === "last_month" || key === "mtd") {
+      const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+      const end = key === "mtd" ? D.ymd(py, pm, +w.cur[1].slice(8, 10)) : D.ymd(py, pm, 31);
+      return Object.assign({}, w, { cmp: [D.ymd(py, pm, 1), end], cmpLabel: key === "mtd" ? "the same days of the month before" : "the month before", cmpShort: "prior month" });
+    }
+    if (key === "last_quarter") {
+      const py = m <= 3 ? y - 1 : y, pm = m <= 3 ? 10 : m - 3;
+      return Object.assign({}, w, { cmp: [D.ymd(py, pm, 1), D.ymd(py, pm + 2, 31)], cmpLabel: "the quarter before", cmpShort: "prior quarter" });
+    }
+    return w; // year to date has no "period before" of the same kind: it stays on last year
+  }
+  const hasBoth = (key) => key !== "ytd";
   const winLabel = (w) => w[0] === w[1] ? fmtDay(w[0]) : `${fmtDay(w[0], { year: D.year(w[0]) === D.year(w[1]) ? undefined : "numeric" })} – ${fmtDay(w[1])}`;
 
   // ---------- formatting ----------
@@ -413,7 +438,7 @@ __THEME_CSS__
       else if (!anchor) return;
       else if (scope === "range") { const ch = rangeChunks(q, anchor); ch.forEach((w, i) => calls.push({ key: ch.length === 1 ? qid : `${qid}~${i}`, qid, input: withDateFilter(base, q.date_field, w), scope })); }
       else if (scope === "window") {
-        const w = PERIODS[period].win(anchor);
+        const w = winOf(period, anchor);
         calls.push({ key: `${qid}@cur`, qid, input: withDateFilter(base, q.date_field, w.cur, q.as_of), scope, window: "cur" });
         calls.push({ key: `${qid}@cmp`, qid, input: withDateFilter(base, q.date_field, w.cmp, q.as_of), scope, window: "cmp" });
       }
@@ -632,7 +657,7 @@ __THEME_CSS__
     }
     if (m.kind === "ratio") return null;
     const rows = seriesRows(m); if (!rows || !anchor) return null;
-    const w = PERIODS[period].win(anchor)[which];
+    const w = winOf(period, anchor)[which];
     if (isSnap(m)) { let best = null; rows.forEach((r) => { if (isNum(r.v) && r.day >= w[0] && r.day <= w[1] && (!best || r.day > best.day)) best = r; }); return best ? best.v : null; }
     return sumIn(rows, w);
   }
@@ -662,7 +687,7 @@ __THEME_CSS__
   }
   function evaluate(id) {
     const m = METRICS[id]; if (!m) return null;
-    const w = anchor ? PERIODS[period].win(anchor) : null;
+    const w = anchor ? winOf(period, anchor) : null;
     const fact = windowValue(m, "cur"), cmp = windowValue(m, "cmp");
     const plan = w ? planFor(m, w.cur) : null;
     const target = m.target && isNum(m.target.value) ? m.target.value : null;
@@ -1069,7 +1094,7 @@ __THEME_CSS__
     const keys = (c.from || []).flatMap((bid) => COMPONENTS[bid] ? [`${COMPONENTS[bid].query}@cur`, `${COMPONENTS[bid].query}@cmp`] : []);
     const list = driverList(c);
     if (!list.length) { host.append(loadingOf(keys) || errorOf(keys) ? stateBox(keys) : el("p", "empty", "Nothing moved in this period.")); return; }
-    const w = PERIODS[period].win(anchor);
+    const w = winOf(period, anchor);
     if (!loadingOf(keys)) askForDrivers(c, list, w);
     const bar = el("div", "drivers__bar");
     const openAll = el("button", "linkbtn", "Expand all"); openAll.type = "button";
@@ -1172,7 +1197,7 @@ __THEME_CSS__
     card.append(factEl);
     const ch = el("p", "card__change " + (ev.good == null ? "flat" : ev.good ? "up-good" : "down-bad"));
     ch.textContent = isNum(ev.change) ? `${arrow(ev.change)}${fmtPct(ev.changePct)} · ${fmtDelta(ev.change, m.format)}` : "—";
-    if (isNum(ev.change)) ch.title = `vs ${PERIODS[period].win(anchor).cmpLabel}`;
+    if (isNum(ev.change)) ch.title = `vs ${winOf(period, anchor).cmpLabel}`;
     card.append(ch);
     const lines = el("ul", "card__lines");
     const li = (k, v) => { const l = el("li"); l.append(el("em", null, k + " "), document.createTextNode(v)); lines.append(l); };
@@ -1304,7 +1329,7 @@ __THEME_CSS__
     const parts = [];
     if (anchor) parts.push(`Data through ${fmtDay(anchor)}`);
     if (stamps.length) parts.push(stamps[0] === stamps[stamps.length - 1] ? `source tables updated ${fmtStamp(stamps[0])}` : `source tables updated ${fmtStamp(stamps[0])} – ${fmtStamp(stamps[stamps.length - 1])}`);
-    if (anchor) { const w = PERIODS[period].win(anchor); parts.push(`${winLabel(w.cur)} vs ${winLabel(w.cmp)}`); }
+    if (anchor) { const w = winOf(period, anchor); parts.push(`${winLabel(w.cur)} vs ${winLabel(w.cmp)}`); }
     if (servedFromCopy && copy) parts.unshift(`Your copy from ${fmtStamp(new Date(copy.savedAt).toISOString())}: Refresh data for live numbers`);
     if (parts.length) $("asof").textContent = parts.join(" · ");
     renderProgress();
@@ -1360,7 +1385,7 @@ __THEME_CSS__
       const base = Object.assign({}, q.input || {}); delete base.limit;
       let input = base, label = q.label || qid;
       if (scope === "range") input = withDateFilter(base, q.date_field, rangeOf(anchor));
-      if (scope === "window") { const w = PERIODS[period].win(anchor)[which]; input = withDateFilter(base, q.date_field, w, q.as_of); label += which === "cur" ? " · this period" : " · comparison"; }
+      if (scope === "window") { const w = winOf(period, anchor)[which]; input = withDateFilter(base, q.date_field, w, q.as_of); label += which === "cur" ? " · this period" : " · comparison"; }
       out.push({ id, data_mart_id: q.data_mart_id, input, label });
     };
     const fromMetric = (mid) => { const m = METRICS[mid]; if (!m) return; if (m.static) addQ(m.static.query); if (m.series) addQ(m.series.query); if (m.window) { addQ(m.window.query, "cur"); addQ(m.window.query, "cmp"); } if (m.plan) addQ(m.plan.query); };
@@ -1472,7 +1497,7 @@ __THEME_CSS__
   const SHEET_TROUBLE = /spreadsheet|sheet|not found|404|trash|deleted|access/i;
   async function runExport(c, dest, fresh) {
     const parts = exportParts(c);
-    const w = anchor ? PERIODS[period].win(anchor) : null;
+    const w = anchor ? winOf(period, anchor) : null;
     const where = dest.connectedGoogleAccount ? dest.name + " · " + dest.connectedGoogleAccount : dest.name;
     const hidden = !!(fresh && xstate[c.id] && xstate[c.id].hidden);
     const st = xstate[c.id] = { busy: true, hidden, title: `Exporting ${parts.length === 1 ? "1 table" : parts.length + " tables"} to ${fresh ? "a new spreadsheet" : "Google Sheets"} (${where})…`, steps: [] };
@@ -1630,7 +1655,15 @@ __THEME_CSS__
   const sel = $("period");
   if (!CFG.anchor) sel.hidden = true;
   periodKeys.forEach((k) => { const o = el("option", null, PERIODS[k].label); o.value = k; if (k === period) o.selected = true; sel.append(o); });
-  sel.addEventListener("change", () => { period = sel.value; syncWatches("period"); });
+  const cmpSel = $("compare");
+  const showCompare = () => {
+    const w = winOf(period, anchor || D.today());
+    cmpSel.hidden = !CFG.anchor || !hasBoth(period);
+    cmpSel.value = w.cmpShort === "last year" ? "last_year" : "previous";
+  };
+  showCompare();
+  sel.addEventListener("change", () => { period = sel.value; showCompare(); syncWatches("period"); });
+  cmpSel.addEventListener("change", () => { compare = cmpSel.value; syncWatches("period"); });
   if (PAGES.length > 1) {
     const tabs = $("tabs"); tabs.hidden = false;
     PAGES.forEach((p, i) => { const b = el("button", "tab", p.title); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", i === activePage ? "true" : "false"); b.addEventListener("click", () => { activePage = i; tabs.querySelectorAll(".tab").forEach((t, j) => t.setAttribute("aria-selected", j === i ? "true" : "false")); if (!visited.has(i)) { visited.add(i); syncWatches("tab"); } renderAll(); }); tabs.append(b); });
