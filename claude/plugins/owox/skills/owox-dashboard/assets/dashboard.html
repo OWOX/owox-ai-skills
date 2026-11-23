@@ -844,10 +844,10 @@ __THEME_CSS__
     if (!by || !anchor) { host.append(stateBox(metricKeys(m))); return; }
     const y = D.year(anchor), months = Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, "0")}`);
     const ly = (k) => `${y - 1}${k.slice(4)}`;
-    const curKey = D.monthKey(anchor);
+    const curMonth = D.monthKey(anchor);
     const ratio = flat(m);
     const cumulative = c.mode === "cumulative" && !ratio;
-    let fact = months.map((k) => k <= curKey && isNum(by[k]) ? by[k] : null);
+    let fact = months.map((k) => k <= curMonth && isNum(by[k]) ? by[k] : null);
     let prior = months.map((k) => isNum(by[ly(k)]) ? by[ly(k)] : null);
     let plan = months.map((k) => isNum(pm[k]) ? pm[k] : null);
     const target = ev && isNum(ev.target) && m.target.horizon === "year" ? ev.target : null;
@@ -858,9 +858,9 @@ __THEME_CSS__
       if (!plan.some(isNum) && target) pace = months.map((k, i) => target * (i + 1) / 12);
     }
     // Month forecast for the running month (bars) or the full-year path (cumulative).
-    const mtdDays = D.diff(curKey + "-01", anchor) + 1, dimCur = D.dim(y, D.month(anchor));
+    const mtdDays = D.diff(curMonth + "-01", anchor) + 1, dimCur = D.dim(y, D.month(anchor));
     const curIdx = D.month(anchor) - 1;
-    const monthFc = !ratio && isNum(by[curKey]) && mtdDays < dimCur ? by[curKey] / mtdDays * dimCur : null;
+    const monthFc = !ratio && isNum(by[curMonth]) && mtdDays < dimCur ? by[curMonth] / mtdDays * dimCur : null;
     const fy = cumulative ? forecastYear(m) : null;
     const all = [...fact, ...prior, ...plan, ...(pace || []), monthFc, fy].filter(isNum);
     const yMax = niceMax(Math.max(...all, 0) * 1.05);
@@ -892,7 +892,7 @@ __THEME_CSS__
     const tip = tooltip(host);
     hit.addEventListener("pointermove", (e) => {
       const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(11, Math.floor((px - L) / band)));
-      const lines = [fmtMonth(months[i] + "-01") + " " + y, `Fact ${fmt(fact[i], m.format)}${i === curIdx && D.diff(curKey + "-01", anchor) + 1 < dimCur ? " (to " + fmtDay(anchor, { year: undefined }) + ")" : ""}`];
+      const lines = [fmtMonth(months[i] + "-01") + " " + y, `Fact ${fmt(fact[i], m.format)}${i === curIdx && D.diff(curMonth + "-01", anchor) + 1 < dimCur ? " (to " + fmtDay(anchor, { year: undefined }) + ")" : ""}`];
       if (plan.some(isNum)) lines.push(`Plan ${fmt(plan[i], m.format)}`);
       if (pace) lines.push(`Pace to target ${fmt(pace[i], m.format)}`);
       lines.push(`${y - 1} ${fmt(prior[i], m.format)}`);
@@ -914,28 +914,28 @@ __THEME_CSS__
     const m = METRICS[c.metric]; const ev = evaluate(c.metric);
     const by = monthly(m);
     if (!by || !anchor) { host.append(stateBox(metricKeys(m))); return; }
-    const keys = Object.keys(by).sort().filter((k) => k <= D.monthKey(anchor));
-    if (!keys.length) { host.append(el("p", "empty", "No rows for this range.")); return; }
-    const vals = keys.map((k) => by[k]); const tgt = ev && isNum(ev.target) ? ev.target : null;
-    const pm = planMonths(m) || {}; const plans = keys.map((k) => isNum(pm[k]) ? pm[k] : null);
+    const monthsShown = Object.keys(by).sort().filter((k) => k <= D.monthKey(anchor));
+    if (!monthsShown.length) { host.append(el("p", "empty", "No rows for this range.")); return; }
+    const vals = monthsShown.map((k) => by[k]); const tgt = ev && isNum(ev.target) ? ev.target : null;
+    const pm = planMonths(m) || {}; const plans = monthsShown.map((k) => isNum(pm[k]) ? pm[k] : null);
     // A ratio's line is read for its movement: the axis spans the values, the plan and the target, not zero.
     const span = [...vals, ...plans, ...(isNum(tgt) ? [tgt] : [])].filter(isNum);
     let lo = Math.min(...span), hi = Math.max(...span); const pad = (hi - lo || Math.abs(hi) || 1) * 0.15; lo = Math.max(0, lo - pad); hi = hi + pad;
     const W = chartWidth(c), H = 230, L = 56, R = 10, T = 12, B = 26;
-    const x = (i) => L + (keys.length === 1 ? 0.5 : i / (keys.length - 1)) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    const x = (i) => L + (monthsShown.length === 1 ? 0.5 : i / (monthsShown.length - 1)) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
     const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${c.title || m.label} by month` });
     for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4; svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v, m.format, true); svg.append(t); }
-    keys.forEach((k, i) => { if (k.endsWith("-01") || i === 0) { const t = svgEl("text", { x: x(i), y: H - 8, "text-anchor": "middle" }); t.textContent = k.endsWith("-01") ? k.slice(0, 4) : fmtMonth(k + "-01"); svg.append(t); } });
+    monthsShown.forEach((k, i) => { if (k.endsWith("-01") || i === 0) { const t = svgEl("text", { x: x(i), y: H - 8, "text-anchor": "middle" }); t.textContent = k.endsWith("-01") ? k.slice(0, 4) : fmtMonth(k + "-01"); svg.append(t); } });
     if (isNum(tgt)) svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(tgt), y2: y(tgt), stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "6 4" }));
     if (plans.some(isNum)) svg.append(svgEl("path", { d: plans.map((v, i) => v == null ? "" : `${i && plans[i - 1] != null ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""), fill: "none", stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "6 4" }));
     const curPartial = anchor !== D.ymd(D.year(anchor), D.month(anchor), 31);
-    const full = curPartial ? keys.length - 1 : keys.length;
+    const full = curPartial ? monthsShown.length - 1 : monthsShown.length;
     svg.append(svgEl("path", { d: vals.slice(0, full).map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""), fill: "none", stroke: "var(--metric)", "stroke-width": 2.2 }));
     if (curPartial && full >= 1) svg.append(svgEl("path", { d: `M${x(full - 1)},${y(vals[full - 1])}L${x(full)},${y(vals[full])}`, stroke: "var(--metric)", "stroke-dasharray": "3 3", fill: "none" }));
-    vals.forEach((v, i) => svg.append(svgEl("circle", { cx: x(i), cy: y(v), r: i === keys.length - 1 && curPartial ? 3.5 : 2, fill: i === keys.length - 1 && curPartial ? "var(--bg-surface)" : "var(--metric)", stroke: "var(--metric)" })));
+    vals.forEach((v, i) => svg.append(svgEl("circle", { cx: x(i), cy: y(v), r: i === monthsShown.length - 1 && curPartial ? 3.5 : 2, fill: i === monthsShown.length - 1 && curPartial ? "var(--bg-surface)" : "var(--metric)", stroke: "var(--metric)" })));
     const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" }); svg.append(hit); host.append(svg);
     const tip = tooltip(host);
-    hit.addEventListener("pointermove", (e) => { const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(keys.length - 1, Math.round(((px - L) / (W - L - R)) * (keys.length - 1)))); const ln = [`${fmtMonth(keys[i] + "-01")} ${keys[i].slice(0, 4)}${i === keys.length - 1 && curPartial ? " (to date)" : ""}`, `${m.label} ${fmt(vals[i], m.format)}`]; if (isNum(plans[i])) ln.push(`Plan ${fmt(plans[i], m.format)}`); if (isNum(tgt)) ln.push(`Target ${fmt(tgt, m.format)}`); tip.show(e, ln); });
+    hit.addEventListener("pointermove", (e) => { const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(monthsShown.length - 1, Math.round(((px - L) / (W - L - R)) * (monthsShown.length - 1)))); const ln = [`${fmtMonth(monthsShown[i] + "-01")} ${monthsShown[i].slice(0, 4)}${i === monthsShown.length - 1 && curPartial ? " (to date)" : ""}`, `${m.label} ${fmt(vals[i], m.format)}`]; if (isNum(plans[i])) ln.push(`Plan ${fmt(plans[i], m.format)}`); if (isNum(tgt)) ln.push(`Target ${fmt(tgt, m.format)}`); tip.show(e, ln); });
     hit.addEventListener("pointerleave", () => tip.hide());
   }
 
@@ -948,7 +948,7 @@ __THEME_CSS__
     const cur = snap ? tableOf(q) : tableOf(`${q}@cur`), cmp = snap ? { rows: [], totals: {} } : tableOf(`${q}@cmp`);
     if (!cur || !cmp) return null;
     const map = new Map();
-    const add = (t, which) => t.rows.forEach((r) => { const k = r[c.dimension] == null || r[c.dimension] === "" ? UNATTRIBUTED : String(r[c.dimension]); const o = map.get(k) || { key: k, cur: 0, cmp: 0 }; const v = Number(r[c.value]); if (isNum(v)) o[which] += v; if (c.target_value && which === "cur" && r[c.target_value] != null) o.target = Number(r[c.target_value]); map.set(k, o); });
+    const add = (t, which) => t.rows.forEach((r) => { const k = r[c.dimension] == null || r[c.dimension] === "" ? UNATTRIBUTED : String(r[c.dimension]); const o = map.get(k) || { dim: k, cur: 0, cmp: 0 }; const v = Number(r[c.value]); if (isNum(v)) o[which] += v; if (c.target_value && which === "cur" && r[c.target_value] != null) o.target = Number(r[c.target_value]); map.set(k, o); });
     add(cur, "cur"); add(cmp, "cmp");
     const rows = [...map.values()].map((o) => Object.assign(o, { delta: o.cur - o.cmp, pct: o.cmp ? (o.cur - o.cmp) / Math.abs(o.cmp) : null }));
     const totCur = isNum(cur.totals[c.value]) ? cur.totals[c.value] : rows.reduce((a, r) => a + r.cur, 0);
@@ -974,7 +974,7 @@ __THEME_CSS__
     const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${c.title} by ${c.dimension_label || c.dimension}` });
     rows.forEach((r, i) => {
       const yy = T + i * rowH;
-      const lab = svgEl("text", { x: 0, y: yy + 18 }); lab.textContent = r.key.length > 22 ? r.key.slice(0, 21) + "…" : r.key; lab.setAttribute("style", "fill: var(--text-secondary)"); svg.append(lab);
+      const lab = svgEl("text", { x: 0, y: yy + 18 }); lab.textContent = r.dim.length > 22 ? r.dim.slice(0, 21) + "…" : r.dim; lab.setAttribute("style", "fill: var(--text-secondary)"); svg.append(lab);
       svg.append(svgEl("rect", { x: L, y: yy + 5, width: Math.max(1, x(r.cmp) - L), height: 7, fill: "var(--prior)" }));
       svg.append(svgEl("rect", { x: L, y: yy + 13, width: Math.max(1, x(r.cur) - L), height: 11, fill: "var(--metric)" }));
       if (isNum(r.target)) svg.append(svgEl("line", { x1: x(r.target), x2: x(r.target), y1: yy + 2, y2: yy + 27, stroke: "var(--plan)", "stroke-width": 2, "stroke-dasharray": "3 2" }));
@@ -984,7 +984,7 @@ __THEME_CSS__
     });
     host.append(svg);
     const tip = tooltip(host);
-    svg.addEventListener("pointermove", (e) => { const i = e.target.dataset && e.target.dataset.i; if (i == null) return tip.hide(); const r = rows[+i]; tip.show(e, [r.key, `This period ${fmt(r.cur, m.format)}`, `Comparison ${fmt(r.cmp, m.format)}`, `Change ${fmtDelta(r.delta, m.format)} (${fmtPct(r.pct)})`].concat(isNum(r.target) ? [`Target ${fmt(r.target, m.format)}`] : [])); });
+    svg.addEventListener("pointermove", (e) => { const i = e.target.dataset && e.target.dataset.i; if (i == null) return tip.hide(); const r = rows[+i]; tip.show(e, [r.dim, `This period ${fmt(r.cur, m.format)}`, `Comparison ${fmt(r.cmp, m.format)}`, `Change ${fmtDelta(r.delta, m.format)} (${fmtPct(r.pct)})`].concat(isNum(r.target) ? [`Target ${fmt(r.target, m.format)}`] : [])); });
     svg.addEventListener("pointerleave", () => tip.hide());
     if (data.truncated) host.append(el("p", "state state--warn", "OWOX returned only part of the rows: raise the query limit or narrow it."));
   }
@@ -996,7 +996,7 @@ __THEME_CSS__
     if (src.ratio) { host.append(el("p", "empty", "A rate does not add up across values, so it has no bridge.")); return; }
     const top = c.top || 6;
     const sorted = [...data.rows].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
-    const steps = sorted.slice(0, top).map((r) => ({ label: r.key, v: r.delta }));
+    const steps = sorted.slice(0, top).map((r) => ({ label: r.dim, v: r.delta }));
     const rest = sorted.slice(top).reduce((a, r) => a + r.delta, 0);
     if (sorted.length > top) steps.push({ label: "Other", v: rest });
     const bars = [{ label: "Comparison", v: data.totCmp, total: true }, ...steps, { label: "This period", v: data.totCur, total: true }];
@@ -1038,7 +1038,7 @@ __THEME_CSS__
       const data = breakdownData(b); if (!data) return null;
       const bm = METRICS[b.metric] || { format: b.format, label: b.title };
       const rows = [...data.rows].sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta)).slice(0, 8)
-        .map((r) => `  ${r.key}: ${fmt(r.cur, bm.format)} vs ${fmt(r.cmp, bm.format)} (${fmtPct(r.pct)})`).join("\n");
+        .map((r) => `  ${r.dim}: ${fmt(r.cur, bm.format)} vs ${fmt(r.cmp, bm.format)} (${fmtPct(r.pct)})`).join("\n");
       return `${b.title} (${bm.label}, by ${b.dimension_label || b.dimension}):\n${rows}`;
     }).filter(Boolean).join("\n\n");
   }
@@ -1047,11 +1047,11 @@ __THEME_CSS__
   }
   function askForDrivers(c, list, w) {
     if (!sampleFn || c.ask_claude === false || CFG.ask_claude === false) return;
-    const sig = [period, anchor, ...list.map((d) => `${d.b.id}:${d.key}:${Math.round(d.delta)}`)].join("|");
+    const sig = [period, anchor, ...list.map((d) => `${d.b.id}:${d.dim}:${Math.round(d.delta)}`)].join("|");
     if (aiOf(c.id).sig === sig) return;
     ai[c.id] = { sig, status: "loading", data: {}, code: null };
     const ids = list.map((d, i) => `${c.code || "TOP"}-${i + 1}`);
-    const lines = list.map((d, i) => { const m = METRICS[d.b.metric] || { format: d.b.format, label: d.b.title }; return `${ids[i]}: ${m.label} from ${d.key} (${d.b.dimension_label || d.b.dimension}) ${fmt(d.cmp, m.format)} → ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}); the total changed by ${fmtDelta(d.totalChange, m.format)}.`; }).join("\n");
+    const lines = list.map((d, i) => { const m = METRICS[d.b.metric] || { format: d.b.format, label: d.b.title }; return `${ids[i]}: ${m.label} from ${d.dim} (${d.b.dimension_label || d.b.dimension}) ${fmt(d.cmp, m.format)} → ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}); the total changed by ${fmtDelta(d.totalChange, m.format)}.`; }).join("\n");
     const prompt = [
       `You are the data partner of the business behind the OWOX project "${PROJECT.title}". ${CFG.lede || ""}`,
       `Period: ${winLabel(w.cur)}, compared with ${winLabel(w.cmp)}.`,
@@ -1072,7 +1072,7 @@ __THEME_CSS__
     const srcs = (d.b.sources || []).filter((x) => x.data_mart_id).map((x) => `${x.title} (${martUrl(x.data_mart_id)})${x.via ? ", " + x.via : ""}`).join("; ");
     return [
       `Using my OWOX Data Marts connector (project "${PROJECT.title}"), dig into this finding from the dashboard "${CFG.title}":`,
-      `${id}: ${m.label} from ${d.key} (${d.b.dimension_label || d.b.dimension}) went from ${fmt(d.cmp, m.format)} to ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}) in ${winLabel(w.cur)} against ${winLabel(w.cmp)}; data through ${fmtDay(anchor)}.`,
+      `${id}: ${m.label} from ${d.dim} (${d.b.dimension_label || d.b.dimension}) went from ${fmt(d.cmp, m.format)} to ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}) in ${winLabel(w.cur)} against ${winLabel(w.cmp)}; data through ${fmtDay(anchor)}.`,
       `Data Marts behind it: ${srcs || "see the block's Source"}.`,
       "Re-query the same two periods. Split the change into volume, rate and value where the data allows. Go one dimension deeper (channel, category, country, segment or device, whichever the data model joins), and rank the drivers until at least 80% of the change is explained. Confirm or reject each hypothesis with numbers. Separate facts, estimates and hypotheses, and invent no metrics.",
     ].join("\n\n");
@@ -1114,19 +1114,20 @@ __THEME_CSS__
       const det = el("details", "ins " + (good ? "ins--ok" : "ins--bad"));
       const sum = el("summary");
       sum.append(el("span", "ins__id", id));
-      sum.append(el("p", "ins__title", `${(m.short || m.label)} from ${d.key}${dimLabel ? " (" + dimLabel.toLowerCase() + ")" : ""} ${verb} ${d.pct == null ? "from zero" : pctFmt(d.pct)}`));
+      sum.append(el("p", "ins__title", `${(m.short || m.label)} from ${d.dim}${dimLabel ? " (" + dimLabel.toLowerCase() + ")" : ""} ${verb} ${d.pct == null ? "from zero" : pctFmt(d.pct)}`));
       sum.append(el("span", "ins__impact " + (good ? "up-good" : "down-bad"), fmtDelta(d.delta, m.format)));
       sum.append(el("span", "mono", isNum(shareOfChange) ? `${pctFmt(shareOfChange)} of change` : ""));
       sum.append(digDeeper(c, d, m, w, id));
       det.append(sum);
       const body = el("div", "ins__body");
       const sec = (h, tag, content) => { const s0 = el("div"); const hh = el("h4"); hh.append(el("span", "tag", tag), document.createTextNode(h)); s0.append(hh); s0.append(content); return s0; };
-      body.append(sec("What happened", "Fact", el("p", null, `${m.label} from ${d.key} was ${fmt(d.cur, m.format)} in ${winLabel(w.cur)}, against ${fmt(d.cmp, m.format)} in ${winLabel(w.cmp)}.`)));
+      body.append(sec("What happened", "Fact", el("p", null, `${m.label} from ${d.dim} was ${fmt(d.cur, m.format)} in ${winLabel(w.cur)}, against ${fmt(d.cmp, m.format)} in ${winLabel(w.cmp)}.`)));
       // Why it matters: the move's share of the period's change, then where the metric stands against plan and the year.
       const why = [];
       const P = CFG.primary_metric && METRICS[CFG.primary_metric];
       const isPrimary = P && d.b.metric === CFG.primary_metric;
-      if (d.totalChange) why.push(`${d.key} ${Math.sign(d.delta) === Math.sign(d.totalChange) ? "is" : "offsets"} ${pctFmt(shareOfChange)} of the ${fmtDelta(d.totalChange, m.format)} change in ${m.label.toLowerCase()}${isPrimary ? ", the project's key metric" : ""}.`);
+      const primaryNote = isPrimary ? ", the project's key metric" : "";
+      if (d.totalChange) why.push(`${d.dim} ${Math.sign(d.delta) === Math.sign(d.totalChange) ? "is" : "offsets"} ${pctFmt(shareOfChange)} of the ${fmtDelta(d.totalChange, m.format)} change in ${m.label.toLowerCase()}${primaryNote}.`);
       // In the key metric's unit only where the config gives an unambiguous formula (change × named metrics).
       if (P && !isPrimary && m.to_primary && m.to_primary.multiply) {
         const facts = m.to_primary.multiply.map((x) => { const e = evaluate(x); return e && isNum(e.fact) ? { v: e.fact, label: e.m.label } : null; });
@@ -1139,7 +1140,7 @@ __THEME_CSS__
         const y = D.year(anchor), yearPlan = planFor(m, [`${y}-01-01`, `${y}-12-31`]), fy = forecastYear(m);
         if (isNum(yearPlan) && isNum(fy)) why.push(`Full-year forecast ${fmt(fy, m.format, true)} against the ${y} plan of ${fmt(yearPlan, m.format, true)}: ${fmtDelta(fy - yearPlan, m.format)}.`);
       }
-      body.append(sec("Why it matters", "Estimate", el("p", null, why.join(" ") || `${d.key} moved by ${fmtDelta(d.delta, m.format)}.`)));
+      body.append(sec("Why it matters", "Estimate", el("p", null, why.join(" ") || `${d.dim} moved by ${fmtDelta(d.delta, m.format)}.`)));
       const pb = (c.playbook && c.playbook[d.b.id] && c.playbook[d.b.id][d.delta > 0 ? "up" : "down"]) || null;
       const A = aiOf(c.id);
       const rec = A.status === "done" && A.data[id] ? A.data[id] : pb;
@@ -1163,14 +1164,14 @@ __THEME_CSS__
     const data = breakdownData(src); const m = METRICS[src.metric] || { format: src.format };
     if (!data) { host.append(stateBox(keys)); return; }
     const up = (m.direction || "up") !== "down";
-    const cols = [["key", src.dimension_label || "Value"], ["cur", "This period"], ["cmp", "Comparison"], ["delta", "Change"], ["pct", "Change %"], ["share", "Share"]];
+    const cols = [["dim", src.dimension_label || "Value"], ["cur", "This period"], ["cmp", "Comparison"], ["delta", "Change"], ["pct", "Change %"], ["share", "Share"]];
     const st = sortState[c.id] || { by: "cur", dir: -1 };
     const rows = [...data.rows].sort((a, b) => { const x = a[st.by], y = b[st.by]; if (typeof x === "string") return st.dir * String(x).localeCompare(String(y)); return st.dir * ((x ?? -Infinity) - (y ?? -Infinity)); });
     const wrap = el("div", "table-wrap"), t = el("table"), thead = el("thead"), tr = el("tr");
     cols.forEach(([k, label]) => { const th = el("th", null, label + (st.by === k ? (st.dir < 0 ? " ↓" : " ↑") : "")); th.addEventListener("click", () => { sortState[c.id] = { by: k, dir: st.by === k ? -st.dir : -1 }; renderAll(); }); tr.append(th); });
     thead.append(tr); t.append(thead);
     const tb = el("tbody");
-    rows.forEach((r) => { const row = el("tr"); row.append(el("td", null, r.key)); row.append(el("td", "num", fmt(r.cur, m.format))); row.append(el("td", "num", fmt(r.cmp, m.format))); const good = r.delta === 0 ? null : (r.delta > 0) === up; row.append(el("td", "num " + (good == null ? "" : good ? "up-good" : "down-bad"), arrow(r.delta) + fmtDelta(r.delta, m.format))); row.append(el("td", "num", fmtPct(r.pct))); row.append(el("td", "num", r.share == null ? "—" : nf({ style: "percent", maximumFractionDigits: 1 }).format(r.share))); tb.append(row); });
+    rows.forEach((r) => { const row = el("tr"); row.append(el("td", null, r.dim)); row.append(el("td", "num", fmt(r.cur, m.format))); row.append(el("td", "num", fmt(r.cmp, m.format))); const good = r.delta === 0 ? null : (r.delta > 0) === up; row.append(el("td", "num " + (good == null ? "" : good ? "up-good" : "down-bad"), arrow(r.delta) + fmtDelta(r.delta, m.format))); row.append(el("td", "num", fmtPct(r.pct))); row.append(el("td", "num", r.share == null ? "—" : nf({ style: "percent", maximumFractionDigits: 1 }).format(r.share))); tb.append(row); });
     const tot = el("tr"); tot.append(el("td", null, "Total")); tot.append(el("td", "num", fmt(data.totCur, m.format))); tot.append(el("td", "num", fmt(data.totCmp, m.format))); tot.append(el("td", "num", data.snap ? "—" : fmtDelta(data.totCur - data.totCmp, m.format))); tot.append(el("td", "num", data.snap ? "—" : fmtPct(data.totCmp ? (data.totCur - data.totCmp) / Math.abs(data.totCmp) : null))); tot.append(el("td", "num", "100%")); tb.append(tot);
     t.append(tb); wrap.append(t); host.append(wrap);
   }
@@ -1337,25 +1338,25 @@ __THEME_CSS__
   }
   // While queries are out: elapsed seconds and how many of this load's runs have answered.
   let cycle = null, tick = null;
-  function beginCycle(keys) {
-    if (!cycle || cycle.done) cycle = { start: Date.now(), keys: new Set(), done: false };
-    keys.forEach((k) => cycle.keys.add(k));
+  function beginCycle(callIds) {
+    if (!cycle || cycle.done) cycle = { start: Date.now(), callIds: new Set(), done: false };
+    callIds.forEach((k) => cycle.callIds.add(k));
     if (!tick) tick = setInterval(renderProgress, 1000);
     renderProgress();
   }
   function renderProgress() {
     const el0 = $("progress"), btn = $("refresh");
     if (!cycle) { el0.hidden = true; return; }
-    const keys = [...cycle.keys]; const answered = keys.filter((k) => store[k] && !store[k].loading).length;
+    const callIds = [...cycle.callIds]; const answered = callIds.filter((k) => store[k] && !store[k].loading).length;
     const secs = Math.max(0, Math.round((Date.now() - cycle.start) / 1000));
-    if (answered >= keys.length) {
+    if (answered >= callIds.length) {
       cycle.done = true; clearInterval(tick); tick = null;
-      el0.textContent = `Loaded in ${secs} s (${keys.length} runs)`; el0.hidden = false;
+      el0.textContent = `Loaded in ${secs} s (${callIds.length} runs)`; el0.hidden = false;
       if (btn && mcp) { btn.disabled = false; btn.textContent = "Refresh data"; }
       clearTimeout(renderProgress.hide); renderProgress.hide = setTimeout(() => { if (cycle && cycle.done) el0.hidden = true; }, 6000);
       return;
     }
-    el0.textContent = `${secs} s (${answered}/${keys.length} runs)`; el0.hidden = false;
+    el0.textContent = `${secs} s (${answered}/${callIds.length} runs)`; el0.hidden = false;
   }
   function pageLevelState() {
     const box = $("page-state");

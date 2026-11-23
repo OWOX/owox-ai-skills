@@ -34,6 +34,12 @@ claude.ai (web and desktop): Customize → Plugins → Add → Add marketplace �
 
 Each query is an MCP Query Run on your OWOX project; a dashboard usually runs 20–30 on first open. More: [github.com/OWOX/owox-ai-skills](https://github.com/OWOX/owox-ai-skills).
 
+## Documentation, support and privacy
+
+- Setting up the OWOX connector: [docs.owox.com](https://docs.owox.com/docs/getting-started/setup-guide/mcp/)
+- Questions and bug reports: [GitHub issues](https://github.com/OWOX/owox-ai-skills/issues)
+- Privacy policy: [owox.com/policies/privacy](https://www.owox.com/policies/privacy)
+
 ## License
 
 MIT
