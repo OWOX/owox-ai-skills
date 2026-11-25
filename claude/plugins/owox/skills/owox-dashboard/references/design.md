@@ -1,6 +1,6 @@
 # Design
 
-The engine ships the owox.com look: dark, Roboto for text, Space Mono for numbers and labels, square corners, 1px lines instead of shadows, a faint cell grid behind the page, Signal Yellow only on the Refresh button. The page stays dark in every viewer theme unless the config sets `"follow_viewer": true`, which adds the owox.com light reading mode. Use the default unless the user gives a design system or a website.
+The engine ships the owox.com look: dark, Roboto for text, Space Mono for numbers and labels, square corners, 1px lines instead of shadows, a plain page background, Signal Yellow only on the Refresh button. The page stays dark in every viewer theme unless the config sets `"follow_viewer": true`, which adds the owox.com light reading mode. Use the default unless the user gives a design system or a website.
 
 ## Where the design comes from, in order
 
@@ -36,7 +36,7 @@ The page shows a logo top left, next to the title. Default: the OWOX app icon (`
 
 ```json
 "theme": {
-  "grid": false,
+  "grid": true,
   "logo": { "file": "acme-logo.svg", "alt": "Acme", "scale": 1 },
   "follow_viewer": true,
   "radius": 8,
@@ -50,7 +50,7 @@ The page shows a logo top left, next to the title. Default: the OWOX app icon (`
 }
 ```
 
-Only the tokens you set change; the rest keep the OWOX defaults. Token values are plain CSS colors (`#hex`, `rgb()`, `rgba()`).
+`grid: true` draws a faint cell grid behind the page (off by default). Only the tokens you set change; the rest keep the OWOX defaults. Token values are plain CSS colors (`#hex`, `rgb()`, `rgba()`).
 
 ## Layout defaults
 

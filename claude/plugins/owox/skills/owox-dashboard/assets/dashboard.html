@@ -63,27 +63,34 @@ button { font: inherit; }
 [hidden] { display: none !important; }
 
 /* Header */
-.top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px 24px; }
-.top .asof { grid-column: 1 / -1; text-align: left; }
-.brand { min-width: 0; }
+/* Two rows: the title with the project name | the controls; the tabs | the data line under the controls. */
+.top { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand controls" "tabs meta"; align-items: center; gap: 14px 24px; }
+.brand__row { grid-area: brand; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 0.4em; min-width: 0; font: 500 clamp(22px, 2.4vw, 30px)/1.15 var(--font-body); }
+.brand__row h1 { margin: 0 !important; font: inherit; letter-spacing: -.02em; min-width: 0; }
 /* The logo sits on the title's line: centred on it and sized from the title's own font size. */
-.brand__row { display: flex; align-items: center; gap: 0.32em; margin-top: 8px; min-width: 0; font: 500 clamp(1.9rem, 4.2vw, 48px)/1.06 var(--font-body); }
-.brand__row h1 { margin: 0 !important; font: inherit; letter-spacing: -.03em; min-width: 0; text-wrap: balance; }
 .brand__logo { display: block; height: calc(var(--logo-scale, 1) * 0.92em); width: auto; max-width: 4.5em; flex-shrink: 0; object-fit: contain; }
-@media (max-width: 680px) { .top { grid-template-columns: minmax(0, 1fr); } }
-.top h1 { font: 500 clamp(1.9rem, 4.2vw, 48px)/1.06 var(--font-body); letter-spacing: -.03em; margin: 0; text-wrap: balance; }
+.brand__kicker { margin-left: .5em; padding-left: .9em; border-left: 1px solid var(--border-default); line-height: 1.2; }
+.brand__kicker:empty { display: none; }
+.top .controls__row { grid-area: controls; }
+.top .tabs { grid-area: tabs; flex-wrap: wrap; overflow: visible; }
+.top__meta { grid-area: meta; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; }
+@media (max-width: 680px) {
+  .top { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brand" "controls" "tabs" "meta"; }
+  .top__meta { align-items: flex-start; }
+}
+.top h1 { letter-spacing: -.02em; margin: 0; }
 .top .lede { margin: 10px 0 0; color: var(--text-secondary); max-width: 66ch; }
 .controls { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .controls__row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.progress { grid-column: 2; justify-self: end; margin: -4px 0 0; color: var(--text-secondary); }
-@media (max-width: 680px) { .progress { grid-column: 1; justify-self: start; } }
+.progress { margin: 0; color: var(--text-secondary); }
 @media (max-width: 680px) { .controls__row { justify-content: flex-start; } }
 .btn { font: 500 15px/1 var(--font-body); height: 40px; padding: 0 20px; background: var(--cta-fill); color: var(--cta-ink); border: 0; border-radius: var(--radius); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .btn:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,.85); }
 .btn[disabled] { opacity: .55; cursor: default; box-shadow: none; }
 .btn--ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--border-default); }
 .select { height: 40px; padding: 0 12px; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius); font: 400 14px var(--font-body); }
-.asof { text-align: right; margin: 0; color: var(--text-muted); }
+.asof { text-align: right; margin: 0; color: var(--text-muted); max-width: 70ch; }
+@media (max-width: 680px) { .asof { text-align: left; } }
 .select:disabled { opacity: .6; cursor: default; }
 .summary { margin: 0; padding: 14px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius); color: var(--text-primary); font-size: 16.5px; }
 .summary b { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -132,7 +139,18 @@ button { font: inherit; }
 .help__btn { width: 18px; height: 18px; border: 1px solid var(--border-default); border-radius: var(--radius); background: transparent; color: var(--text-muted); font: 400 10.5px/1 var(--font-mono); cursor: help; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .help__pop { position: absolute; left: 0; top: calc(100% + 8px); width: min(300px, 78vw); z-index: 6; background: var(--bg-nested); border: 1px solid var(--border-default); padding: 10px 14px; color: var(--text-secondary); font: 400 13px/1.55 var(--font-body); text-transform: none; letter-spacing: 0; display: none; }
 .help:hover .help__pop, .help:focus-within .help__pop { display: block; }
-.help__pop p { margin: 0; } .help__pop p + p { margin-top: 6px; color: var(--text-muted); font: 400 11.5px/1.5 var(--font-mono); }
+.help__pop p { margin: 0; }
+.help__pop { overflow-wrap: anywhere; }
+.help__pop.pop--right { left: auto; right: 0; }
+.pop--assume { width: min(340px, 80vw); }
+.pop--assume .pop__head { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--text-primary); font: 500 13.5px/1.35 var(--font-body); }
+.tag--assume { border-color: var(--warn); color: var(--warn); margin: 0; flex-shrink: 0; }
+.pop--assume .pop__dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; margin: 8px 0 0; }
+.pop--assume dt { font: 400 10px/1.6 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-decor); }
+.pop--assume dd { margin: 0; color: var(--text-secondary); font: 400 12.5px/1.45 var(--font-body); }
+.pop--assume dd.num { font: 400 12px/1.45 var(--font-mono); }
+.pop--assume .pop__fix { margin: 10px 0 0; padding-top: 8px; border-top: 1px dashed var(--border-default); color: var(--text-secondary); font: 400 12.5px/1.45 var(--font-body); }
+.pop--assume .pop__fix code { font: 400 12px var(--font-mono); color: var(--text-primary); } .help__pop p + p { margin-top: 6px; color: var(--text-muted); font: 400 11.5px/1.5 var(--font-mono); }
 
 /* Charts */
 .chart { position: relative; min-height: 120px; }
@@ -231,9 +249,7 @@ pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1p
 .lever__vals .tgt, .lever__vals .tgt b { color: var(--metric); }
 .fc-lede { margin: 0 0 14px; font-size: 16px; line-height: 1.55; color: var(--text-primary); max-width: 95ch; }
 .fc-lede b { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
-/* A forecast-only page keeps one short line under Refresh instead of the full data line. */
-.top--fc .asof { grid-column: 2; justify-self: end; text-align: right; margin: -4px 0 0; }
-@media (max-width: 680px) { .top--fc .asof { grid-column: 1; justify-self: start; text-align: left; } }
+
 
 .fcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 14px; }
 .card--fc { border-top-color: var(--metric); }
@@ -254,24 +270,24 @@ __THEME_CSS__
 
 <div class="page" id="page">
   <header class="top">
-    <div class="brand">
-      <p class="mono-label" id="kicker"></p>
-      <div class="brand__row">
-        <img class="brand__logo" id="logo" alt="" hidden>
-        <h1 id="title"></h1>
-      </div>
+    <div class="brand__row">
+      <img class="brand__logo" id="logo" alt="" hidden>
+      <h1 id="title"></h1>
+      <span class="mono-label brand__kicker" id="kicker"></span>
     </div>
     <div class="controls__row">
       <select class="select" id="period" aria-label="Period"></select>
       <select class="select" id="compare" aria-label="Compare with" hidden><option value="previous">vs the period before</option><option value="last_year">vs the same period last year</option></select>
       <button class="btn" id="refresh" type="button" disabled>Refresh data</button>
     </div>
-    <p class="mono progress" id="progress" hidden></p>
-    <p class="mono asof" id="asof">Connecting to OWOX…</p>
+    <nav class="tabs" id="tabs" role="tablist" hidden></nav>
+    <div class="top__meta">
+      <p class="mono progress" id="progress" hidden></p>
+      <p class="mono asof" id="asof">Connecting to OWOX…</p>
+    </div>
   </header>
   <p class="state" id="page-state" hidden></p>
   <div class="summary" id="summary" hidden></div>
-  <nav class="tabs" id="tabs" role="tablist" hidden></nav>
   <main id="pages"></main>
   <details class="block about" id="about">
     <summary><span class="mono-label">About these numbers</span></summary>
@@ -309,7 +325,7 @@ __THEME_CSS__
   const isNum = (v) => typeof v === "number" && isFinite(v);
 
   // ---------- theme: dark first, light when the viewer's theme asks for it (CSS tokens) ----------
-  if (!(CFG.theme && CFG.theme.grid === false)) document.body.classList.add("grid-bg");
+  if (CFG.theme && CFG.theme.grid === true) document.body.classList.add("grid-bg");
 
   // ---------- dates (ISO day strings, UTC math) ----------
   const D = {
@@ -529,12 +545,12 @@ __THEME_CSS__
           const n = out[b.numerator], d = out[b.denominator];
           const v = n && d && isNum(n.value) && isNum(d.value) && d.value > 0 ? n.value / d.value : null;
           const nb = bl[b.numerator], db = bl[b.denominator];
-          put(key, { kind: "Assumption", value: v, formula: `${nb.value} ÷ ${db.value}, ${span}`, inputs: [{ key: b.numerator, label: n ? n.label : b.numerator, value: n && n.value }, { key: b.denominator, label: d ? d.label : b.denominator, value: d && d.value }] });
+          put(key, { kind: "Assumption", value: v, rule: `${n ? n.label : b.numerator} ÷ ${d ? d.label : b.denominator}`, formula: `${nb.value} ÷ ${db.value}, ${span}`, inputs: [{ key: b.numerator, label: n ? n.label : b.numerator, value: n && n.value }, { key: b.denominator, label: d ? d.label : b.denominator, value: d && d.value }] });
           if (v == null) notes.push(`${bl[key].label} could not be computed: ${d ? d.label : b.denominator} is zero or missing over ${span}.${key === "cac" ? " Without a CAC the page cannot forecast new customers." : ""}`);
         } else if (b.op === "seasonality") {
           const s = seasonality(series[b.of] || {}, win.to);
           if (!s) notes.push(`${bl[key].label}: fewer than 24 months of ${bl[b.of] ? bl[b.of].label : b.of} up to ${fmtKey(win.to)}, so every month is weighted the same.`);
-          put(key, { kind: "Assumption", value: s, flat: !s, window: [addMonths(win.to, -23), win.to], formula: `each calendar month ÷ its centred 12-month moving average, 24 months to ${fmtKey(win.to)}` });
+          put(key, { kind: "Assumption", value: s, flat: !s, rule: s ? "Each calendar month ÷ its 12-month moving average, normalised to 1" : "Not enough history: every month weighs the same", window: [addMonths(win.to, -23), win.to], formula: `each calendar month ÷ its centred 12-month moving average, 24 months to ${fmtKey(win.to)}` });
         }
       });
       // Months of the window that have data: a young project averages over those, not over 12.
@@ -567,7 +583,7 @@ __THEME_CSS__
           curve = c.curve;
           const shown = []; for (let k = 0; k <= Math.min(c.measured, 5); k++) shown.push({ label: `Month ${k}`, value: c.curve(k) });
           shown.push({ label: `Month ${c.measured + 1}+`, value: c.tail });
-          put(ck, { kind: "Assumption", value: c.curve(0), measured: c.measured, formula: `Σ ${aggCol(q)} by ${q.acquired_field} × ${q.ordered_field} ÷ new customers, development factors over the cohorts seen at both ages`, inputs: shown });
+          put(ck, { kind: "Assumption", value: c.curve(0), measured: c.measured, rule: "Revenue per new customer by month since the first order, averaged over the cohorts that reached each month", formula: `Σ ${aggCol(q)} by ${q.acquired_field} × ${q.ordered_field} ÷ new customers, development factors over the cohorts seen at both ages`, inputs: shown });
           fit = modelFit(matrix, sizes, win.to);
           baseRev = existingRevenue({ mode, months: nRev || 12, matrix, sizes, curve, horizonKeys: H, windowMonths: win.months, prevMonths: win.months.map((k) => addMonths(k, -12)), totalByMonth: revBy, seasonRevenue: sRev, anchor: ctx.anchor });
         }
@@ -581,7 +597,7 @@ __THEME_CSS__
           const repeat = nc.error ? 0 : Math.max(0, nc.repeat);
           if (nc.error) notes.push("No customer base baseline (customers with an order in the window): new customers are counted for their first month only.");
           curve = (k) => (k === 0 ? aov : repeat);
-          if (ck) put(ck, { kind: "Assumption", value: aov, formula: `first month = ${bl.aov.value}; later months = (window revenue − new customers × ${bl.aov.value}) ÷ 12 ÷ customer base`, inputs: [{ label: "Month 0", value: aov }, { label: "Month 1+", value: repeat }] });
+          if (ck) put(ck, { kind: "Assumption", value: aov, rule: "First month = average order value; later months = the window's repeat revenue per customer", formula: `first month = ${bl.aov.value}; later months = (window revenue − new customers × ${bl.aov.value}) ÷ 12 ÷ customer base`, inputs: [{ label: "Month 0", value: aov }, { label: "Month 1+", value: repeat }] });
           baseRev = existingRevenue({ mode, months: nRev || 12, repeatTotal: Math.max(0, winRev - winNew * aov), horizonKeys: H, seasonRevenue: sRev });
         }
       }
@@ -1105,7 +1121,7 @@ __THEME_CSS__
     const b = el("button", "help__btn", "i"); b.type = "button"; b.setAttribute("aria-label", "About this number");
     const pop = el("span", "help__pop"); pop.setAttribute("role", "tooltip");
     lines.filter(Boolean).forEach((t) => pop.append(el("p", null, t)));
-    h.append(b, pop); return h;
+    h.append(b, pop); placePop(h, pop); return h;
   }
   function martUrl(id, field) {
     const base = `${APP}/ui/${encodeURIComponent(PROJECT.id)}/data-marts/${encodeURIComponent(id)}/data-setup`;
@@ -1690,23 +1706,32 @@ __THEME_CSS__
     return fmt(v, (b && b.format) || FC_FORMAT[key] || "number", compact);
   };
   // A baseline's inputs: another baseline's value in that baseline's format, or revenue per customer.
-  const fcInputs = (bl) => (bl.inputs || []).map((x) => `${x.label} ${x.key ? fcFmt(x.key, x.value) : fmt(x.value, "currency")}`).join(" · ");
+  const fcInputs = (bl, max) => { const xs = bl.inputs || []; const shown = max && xs.length > max + 1 ? [...xs.slice(0, max), xs[xs.length - 1]] : xs; return shown.map((x) => `${x.label} ${x.key ? fcFmt(x.key, x.value) : fmt(x.value, "currency")}`).join(" · "); };
   const fmtMonthKey = (k) => `${fmtMonth(k + "-01")} ${k.slice(0, 4)}`;
   // The "!" next to every Assumption: how the page computed it, from which OWOX values, and the calculated
   // field that would make it a Fact.
+  // A popover near the right edge opens to the left, so it is never cut off.
+  const placePop = (h, pop) => { const f = () => pop.classList.toggle("pop--right", h.getBoundingClientRect().left > window.innerWidth / 2); h.addEventListener("mouseenter", f); h.addEventListener("focusin", f); };
+  const martTitle = (id) => { const q = Object.values(QUERIES).find((x) => x.data_mart_id === id); return q ? String(q.label || id).split(" · ").pop() : "the Data Mart"; };
   function assume(bl) {
     const h = el("span", "help");
-    const btn = el("button", "help__btn help__btn--assume", "!"); btn.type = "button"; btn.setAttribute("aria-label", "How this assumption is computed");
-    const pop = el("span", "help__pop"); pop.setAttribute("role", "tooltip");
-    pop.append(el("p", null, `${bl.label}: computed in this page from OWOX values, not read from a Data Mart.`));
-    if (bl.formula) pop.append(el("p", null, bl.formula));
-    if ((bl.inputs || []).length) pop.append(el("p", null, fcInputs(bl)));
+    const btn = el("button", "help__btn help__btn--assume", "!"); btn.type = "button"; btn.setAttribute("aria-label", `${bl.label}: an assumption. How it is computed`);
+    const pop = el("span", "help__pop pop--assume"); pop.setAttribute("role", "tooltip");
+    const head = el("span", "pop__head"); head.append(el("span", "tag tag--assume", "Assumption"), document.createTextNode(bl.label)); pop.append(head);
+    pop.append(el("span", null, "Computed in this page from OWOX values by a fixed rule, not read from a Data Mart."));
+    const dl = el("dl", "pop__dl");
+    const row = (k, v, cls) => { if (!v) return; dl.append(el("dt", null, k), el("dd", cls || null, v)); };
+    row("Rule", bl.rule || bl.formula);
+    row("Inputs", fcInputs(bl, 3), "num");
+    if (bl.window) row("Window", `${fmtMonthKey(bl.window[0])} – ${fmtMonthKey(bl.window[1])}`, "num");
+    pop.append(dl);
     if (bl.suggest) {
-      const p = el("p", null, `Add “${bl.suggest.name}” as a calculated field (${bl.suggest.formula}) and the page reads it as a Fact. `);
-      if (bl.suggest.data_mart_id) { const a = el("a", null, "Open the Data Mart ↗"); a.href = martUrl(bl.suggest.data_mart_id); a.target = "_blank"; a.rel = "noopener"; p.append(a); }
-      pop.append(p);
+      const fix = el("p", "pop__fix");
+      fix.append(document.createTextNode("Make it a Fact: add "), el("code", null, bl.suggest.name), document.createTextNode(` to ${martTitle(bl.suggest.data_mart_id)} as a calculated field (${bl.suggest.formula}). `));
+      if (bl.suggest.data_mart_id) { const a = el("a", null, "Open in OWOX ↗"); a.href = martUrl(bl.suggest.data_mart_id); a.target = "_blank"; a.rel = "noopener"; fix.append(a); }
+      pop.append(fix);
     }
-    h.append(btn, pop); return h;
+    h.append(btn, pop); placePop(h, pop); return h;
   }
   const kindMark = (bl) => bl && bl.kind === "Assumption" ? assume(bl) : null;
   // Lever positions: per viewer, in this browser only; the page works without storage.
@@ -2284,7 +2309,6 @@ __THEME_CSS__
   })();
   const sel = $("period");
   if (!CFG.anchor || FC_ONLY) sel.hidden = true;
-  if (FC_ONLY) document.querySelector(".top").classList.add("top--fc");
   periodKeys.forEach((k) => { const o = el("option", null, PERIODS[k].label); o.value = k; if (k === period) o.selected = true; sel.append(o); });
   const cmpSel = $("compare");
   const showCompare = () => {
