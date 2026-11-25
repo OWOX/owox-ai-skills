@@ -247,12 +247,20 @@ pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1p
 .lever__vals b { color: var(--text-primary); font-weight: 700; }
 .lever__vals em { font-style: normal; }
 .lever__vals .tgt, .lever__vals .tgt b { color: var(--metric); }
-.fc-lede { margin: 0 0 14px; font-size: 16px; line-height: 1.55; color: var(--text-primary); max-width: 95ch; }
+.fc-lede { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--text-secondary); }
 .fc-lede b { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 
-.fcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 14px; }
-.card--fc { border-top-color: var(--metric); }
+.fstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px 20px; }
+.fstat { min-width: 0; padding-left: 12px; border-left: 2px solid var(--metric); }
+.fstat__name { display: flex; align-items: center; gap: 6px; margin: 0; font: 400 10.5px/1.5 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.fstat__value { margin: 2px 0 0; font: 700 22px/1.15 var(--font-mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.fstat__sub { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; font: 400 11.5px/1.5 var(--font-mono); color: var(--text-muted); }
+.fstat__sub em { font-style: normal; }
+.block--fstats .block__body { padding-block: 12px 14px; }
+.fchart__top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 0 0 6px; }
+.fchart__top .switch, .fchart__top .legend { margin: 0; }
+.legend i.spend { background: color-mix(in srgb, var(--warn) 75%, transparent); }
 .switch { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius); margin: 0 0 8px; }
 .switch button { background: transparent; border: 0; color: var(--text-secondary); font: 400 11.5px/1 var(--font-mono); padding: 7px 10px; cursor: pointer; }
 .switch button[aria-pressed="true"] { background: var(--bg-nested); color: var(--text-primary); }
@@ -1620,14 +1628,15 @@ __THEME_CSS__
   // ---------- summary (templated from the same numbers) ----------
   // The forecast in one sentence: on the chart when the page has one, else at the top.
   const FC_CHART = PAGES.some((p) => (p.components || []).some((c) => c.type === "forecast_chart"));
+  // The forecast in one line: horizon, revenue, new customers at their CAC, profit, and the cash low if any.
   function fcSentence(run) {
-      const t = run.res.totals, p = el("p"), b = (v) => el("b", null, v);
-      p.append(document.createTextNode(`Over ${horizonLabel(run.st)} the model expects `), b(fmt(t.revenue, "currency", true)), document.createTextNode(" revenue"));
-      if (FCFG.baselines.spend) p.append(document.createTextNode(", "), b(fmt(t.newCustomers, "number", true)), document.createTextNode(" new customers at "), b(fmt(t.cac, "currency")), document.createTextNode(" each"));
-      p.append(document.createTextNode(`, and ${t.contributionOnly ? "a contribution" : "operating profit"} of `), b(fmt(t.operatingProfit, "currency", true)));
-      if (t.peakCash > 0) p.append(document.createTextNode("; cash bottoms out at "), b("−" + fmt(t.peakCash, "currency", true)), document.createTextNode(` in ${fmtMonthKey(run.st.model.horizonKeys[t.peakIndex])}`));
-      p.append(document.createTextNode(". Every figure here is an Estimate."));
-      return p;
+    const t = run.res.totals, p = el("p"), b = (v) => el("b", null, v), txt = (v) => document.createTextNode(v);
+    const when = FCFG.horizon === "through_next_december" ? `Through December ${run.st.model.horizonKeys[run.st.model.H - 1].slice(0, 4)}` : `Next ${run.st.model.H} months`;
+    p.append(txt(`${when}, Estimate: `), b(fmt(t.revenue, "currency", true)), txt(" revenue"));
+    if (FCFG.baselines.spend) p.append(txt(" · "), b(fmt(t.newCustomers, "number", true)), txt(" new customers at "), b(fmt(t.cac, "currency")));
+    p.append(txt(" · "), b(fmt(t.operatingProfit, "currency", true)), txt(t.contributionOnly ? " contribution" : " operating profit"));
+    if (t.peakCash > 0) p.append(txt(" · cash low "), b("−" + fmt(t.peakCash, "currency", true)), txt(` in ${fmtMonthKey(run.st.model.horizonKeys[t.peakIndex])}`));
+    return p;
   }
   function renderSummary() {
     if (FCFG) {
@@ -1800,41 +1809,48 @@ __THEME_CSS__
     });
     host.append(box);
   }
-  function fcCard(title, value, fmtKey, lines, mark) {
-    const card = el("article", "card card--fc");
-    const row = el("div", "card__row"); row.append(el("span", "tag", "Estimate")); card.append(row);
-    const name = el("h2", "card__name", title); if (mark) name.append(mark); card.append(name);
-    card.append(el("p", "card__fact", value));
-    const ul = el("ul", "card__lines");
-    lines.filter(Boolean).forEach(([k, v, m]) => { const li = el("li"); li.append(el("em", null, k + " "), document.createTextNode(v)); if (m) li.append(document.createTextNode(" "), m); ul.append(li); });
-    if (ul.childNodes.length) card.append(ul);
+  // A compact stat: name, the horizon Estimate, and one line against the last 12 months.
+  function fcCard(title, value, sub, mark) {
+    const card = el("article", "fstat");
+    const name = el("p", "fstat__name", title); if (mark) name.append(mark); card.append(name);
+    card.append(el("p", "fstat__value", value));
+    if (sub) card.append(sub);
     return card;
   }
+  // "last 12 mo $3.3M +24%": the change is coloured by whether it is good for the business.
+  function fcVs(key, now, upGood) {
+    const bl = fcState().baselines[key]; if (!bl || !isNum(bl.value)) return null;
+    const p = el("p", "fstat__sub"); p.append(el("em", null, "last 12 mo "), document.createTextNode(fcFcmt(key, bl.value)));
+    if (isNum(now) && bl.value) { const ch = (now - bl.value) / Math.abs(bl.value); if (Math.abs(ch) >= 0.005) p.append(document.createTextNode(" "), el("span", (ch > 0) === upGood ? "up-good" : "down-bad", fmtPct(ch))); }
+    const mk = kindMark(bl); if (mk) p.append(document.createTextNode(" "), mk);
+    return p;
+  }
+  const fcFcmt = (key, v) => fcFmt(key, v, true);
+  const fcNote = (t) => el("p", "fstat__sub", t);
   function cardsBlock(host) {
     const run = fcRun(); if (fcProblem(host, run)) return;
     const { st, res } = run; const t = res.totals, bl = st.baselines;
-    const wrap = el("div", "fcards");
-    const last = (key, f) => bl[key] && isNum(bl[key].value) ? ["Last 12 months", fcFmt(key, bl[key].value, true), kindMark(bl[key])] : null;
-    wrap.append(fcCard("Revenue", fmt(t.revenue, "currency", true), "revenue", [last("revenue")]));
+    const wrap = el("div", "fstats");
+    wrap.append(fcCard("Revenue", fmt(t.revenue, "currency", true), fcVs("revenue", t.revenue, true)));
     if (bl.spend) {
-      wrap.append(fcCard("New customers", fmt(t.newCustomers, "number", true), "new_customers", [last("new_customers")]));
-      wrap.append(fcCard("Blended CAC", fmt(t.cac, "currency"), "cac", [last("cac")], kindMark(bl.cac)));
+      wrap.append(fcCard("Ad spend", fmt(t.budget, "currency", true), fcVs("spend", t.budget, false)));
+      wrap.append(fcCard("New customers", fmt(t.newCustomers, "number", true), fcVs("new_customers", t.newCustomers, true)));
+      wrap.append(fcCard("Blended CAC", fmt(t.cac, "currency"), fcVs("cac", t.cac, false)));
     }
-    wrap.append(fcCard(t.contributionOnly ? "Contribution" : "Operating profit", fmt(t.operatingProfit, "currency", true), null, [t.contributionOnly ? ["Before fixed costs", "you left them out"] : null]));
-    wrap.append(fcCard("Peak cash need", t.peakCash > 0 ? fmt(t.peakCash, "currency", true) : fmt(0, "currency"), null, [t.peakCash > 0 ? ["Lowest in", fmtMonthKey(st.model.horizonKeys[t.peakIndex])] : ["Cash", "stays above zero"]]));
+    wrap.append(fcCard(t.contributionOnly ? "Contribution" : "Operating profit", fmt(t.operatingProfit, "currency", true), fcNote(t.contributionOnly ? "before fixed costs" : "after ad spend and fixed costs")));
+    wrap.append(fcCard("Peak cash need", fmt(t.peakCash, "currency", true), fcNote(t.peakCash > 0 ? `lowest in ${fmtMonthKey(st.model.horizonKeys[t.peakIndex])}` : "cash stays above zero")));
     host.append(wrap);
   }
   const fcMode = {};
   function forecastChartBlock(host, c) {
     const run = fcRun(); if (fcProblem(host, run)) return;
     const { st, res } = run; const m = st.model;
-    const lede = fcSentence(run); lede.className = "fc-lede"; host.append(lede);
     const mode = fcMode[c.id] || "profit";
     const sw = el("div", "switch"); [["profit", res.totals.contributionOnly ? "Contribution" : "Operating profit"], ["cash", "Cumulative cash"]].forEach(([k, t]) => { const bt = el("button", null, t); bt.type = "button"; bt.setAttribute("aria-pressed", String(mode === k)); bt.addEventListener("click", () => { fcMode[c.id] = k; rerenderForecast(); }); sw.append(bt); });
     const lg = el("div", "legend"); const add = (cls, t) => { const s0 = el("span"); s0.append(el("i", cls), document.createTextNode(t)); lg.append(s0); };
     add("", "Revenue, Fact"); add("hatch", `${fmtMonth(m.anchorMonth + "-01")} 1–${+anchor.slice(8, 10)}, Fact`); add("base", "Existing customers, Estimate"); add("new", "New customers, Estimate");
-    if (FCFG.baselines.spend) add("budget", "Ad budget"); add("profit", mode === "cash" ? "Cumulative cash" : (res.totals.contributionOnly ? "Contribution" : "Operating profit"));
-    host.append(sw, lg);
+    if (FCFG.baselines.spend) add("spend", "Ad spend, below the axis"); add("profit", mode === "cash" ? "Cumulative cash" : (res.totals.contributionOnly ? "Contribution" : "Operating profit"));
+    const top = el("div", "fchart__top"); top.append(sw, lg); host.append(top);
     const hist = Object.keys(m.history).sort().slice(-13);
     const keys = [...hist, ...m.horizonKeys];
     const nH = hist.length;
@@ -1842,15 +1858,18 @@ __THEME_CSS__
     const budget = keys.map((k, i) => i < nH ? m.history[k].spend : res.rows[i - nH].budget);
     const line = keys.map((k, i) => i < nH ? null : (mode === "cash" ? res.rows[i - nH].cumCash : res.rows[i - nH].operatingProfit));
     const tops = bar.map((x) => (x.fact != null ? x.fact : (x.base || 0) + (x.nw || 0)));
-    const all = [...tops, ...budget, ...line].filter(isNum);
+    // Ad spend is a cost: drawn below the axis, so the chart reads revenue in, spend out.
+    const spendNeg = FCFG.baselines.spend ? budget.map((v) => (isNum(v) ? -v : null)) : [];
+    const all = [...tops, ...spendNeg, ...line].filter(isNum);
     const lo = Math.min(0, ...all), hi = Math.max(0, ...all);
-    const yMax = niceMax(hi * 1.05), yMin = lo < 0 ? -niceMax(-lo * 1.05) : 0;
-    const W = window.innerWidth < 680 ? 520 : chartWidth(c), Hh = window.innerWidth < 680 ? 360 : 290, L = 64, R = 10, T = 12, B = 28;
+    // Ticks on round steps that pass through zero.
+    const step = niceMax((hi - lo) / 4 || 1), yMax = Math.ceil(hi * 1.02 / step) * step || step, yMin = Math.floor(lo * 1.02 / step) * step;
+    const W = window.innerWidth < 680 ? 520 : chartWidth(c), Hh = window.innerWidth < 680 ? 330 : 230, L = 64, R = 10, T = 12, B = 28;
     const band = (W - L - R) / keys.length, xc = (i) => L + band * (i + 0.5), yv = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (Hh - T - B);
     const svg = svgEl("svg", { viewBox: `0 0 ${W} ${Hh}`, role: "img", "aria-label": `${c.title || "Revenue by month"}: the last ${nH} months and ${horizonLabel(st)}` });
     const defs = svgEl("defs", {}); const pat = svgEl("pattern", { id: `fc-hatch-${c.id}`, width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
     pat.append(svgEl("rect", { width: 5, height: 5, fill: "var(--bg-surface)" }), svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 5, stroke: "var(--metric)", "stroke-width": 2.5 })); defs.append(pat); svg.append(defs);
-    for (let i = 0; i <= 4; i++) { const v = yMin + (yMax - yMin) * i / 4; svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(v), y2: yv(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: yv(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v, "currency", true); svg.append(t); }
+    for (let v = yMin; v <= yMax + step / 2; v += step) { svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(v), y2: yv(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: yv(v) + 4, "text-anchor": "end" }); t.textContent = fmt(Math.abs(v) < step / 1e6 ? 0 : v, "currency", true); svg.append(t); }
     if (yMin < 0) svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(0), y2: yv(0), stroke: "var(--border-strong)" }));
     svg.append(svgEl("line", { x1: L + band * nH, x2: L + band * nH, y1: T, y2: Hh - B, stroke: "var(--border-strong)", "stroke-dasharray": "2 3" }));
     keys.forEach((k, i) => { if (i % 2 && keys.length > 16) return; const t = svgEl("text", { x: xc(i), y: Hh - 9, "text-anchor": "middle" }); t.textContent = fmtMonth(k + "-01"); svg.append(t); });
@@ -1862,8 +1881,8 @@ __THEME_CSS__
       svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(b0), width: bw, height: Math.max(0, yv(0) - yv(b0)), fill: "color-mix(in srgb, var(--metric) 45%, transparent)" }));
       svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(b0 + n0), width: bw, height: Math.max(0, yv(b0) - yv(b0 + n0)), fill: "var(--metric-2)" }));
     });
+    spendNeg.forEach((v, i) => { if (!isNum(v)) return; const fact = i < nH; svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(0), width: bw, height: Math.max(0, yv(v) - yv(0)), fill: fact ? "color-mix(in srgb, var(--warn) 80%, transparent)" : "color-mix(in srgb, var(--warn) 55%, transparent)" })); });
     const path = (arr, attrs) => svg.append(svgEl("path", Object.assign({ d: arr.map((v, i) => !isNum(v) ? "" : `${i && isNum(arr[i - 1]) ? "L" : "M"}${xc(i).toFixed(1)},${yv(v).toFixed(1)}`).join(""), fill: "none" }, attrs)));
-    if (FCFG.baselines.spend) path(budget, { stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "5 4" });
     path(line, { stroke: "var(--ok)", "stroke-width": 2 });
     const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: Hh - T - B, fill: "transparent" }); svg.append(hit); host.append(svg);
     const tip = tooltip(host);
@@ -1872,11 +1891,12 @@ __THEME_CSS__
       const k = keys[i], x = bar[i]; const ln = [fmtMonthKey(k)];
       if (x.fact != null) ln.push(`Revenue ${fmt(x.fact, "currency")} · Fact${k === m.anchorMonth ? " (to " + fmtDay(anchor, { year: undefined }) + ")" : ""}`);
       else { ln.push(`Existing customers ${fmt(x.base, "currency")} · Estimate`, `New customers ${fmt(x.nw, "currency")} · Estimate`); const row = res.rows[i - nH]; ln.push(`${fmt(row.newCustomers, "number")} new at ${fmt(row.cac, "currency")} · Estimate`); }
-      if (FCFG.baselines.spend && isNum(budget[i])) ln.push(`Ad budget ${fmt(budget[i], "currency")}${x.fact != null ? " · Fact" : " · Estimate"}`);
+      if (FCFG.baselines.spend && isNum(budget[i])) ln.push(`Ad spend ${fmt(budget[i], "currency")}${x.fact != null ? " · Fact" : " · Estimate"}`);
       if (isNum(line[i])) ln.push(`${mode === "cash" ? "Cumulative cash" : (res.totals.contributionOnly ? "Contribution" : "Operating profit")} ${fmt(line[i], "currency")}`);
       tip.show(e, ln);
     });
     hit.addEventListener("pointerleave", () => tip.hide());
+    const lede = fcSentence(run); lede.className = "fc-lede"; host.append(lede);
   }
   function assumptionsBlock(host) {
     const st = fcState(); if (!st || st.missing) { host.append(stateBox(fcQueryIds())); return; }
@@ -1903,6 +1923,7 @@ __THEME_CSS__
   function forecastBlock(c) {
     const levers = c.type === "forecast_levers";
     const { art, body } = block(c, c.title || "Forecast", levers ? { help: [c.description || "Move a lever and every number below follows.", "The grey triangle under a track is today's value; the handle is the target. Each lever moves in a straight line from today's value in the first month to the target in the last. Positions stay in this browser."] } : null);
+    if (c.type === "forecast_cards") art.classList.add("block--fstats");
     if (levers) {
       art.classList.add("block--sticky");
       const reset = el("button", "btn btn--ghost btn--sm", "Reset"); reset.type = "button"; reset.title = "Return every lever to today's value";
@@ -1915,7 +1936,7 @@ __THEME_CSS__
     else if (c.type === "forecast_chart") forecastChartBlock(host, c);
     else assumptionsBlock(host);
     body.append(host);
-    if (!levers) footer(body, Object.assign({}, c, { sources: c.sources || fcSources(), tags: c.tags || (c.type === "forecast_assumptions" ? ["Fact", "Assumption", "Your input"] : ["Fact", "Assumption", "Estimate"]) }), fcQueryIds());
+    if (!levers && c.type !== "forecast_cards") footer(body, Object.assign({}, c, { sources: c.sources || fcSources(), tags: c.tags || (c.type === "forecast_assumptions" ? ["Fact", "Assumption", "Your input"] : ["Fact", "Assumption", "Estimate"]) }), fcQueryIds());
     return art;
   }
 
