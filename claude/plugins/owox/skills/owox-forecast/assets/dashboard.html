@@ -363,7 +363,74 @@ __THEME_CSS__
       const nTot = sum("newCustomers");
       return { rows, totals: { revenue: sum("revenue"), newCustomers: nTot, budget: sum("budget"), cac: nTot > 0 ? sum("budget") / nTot : null, operatingProfit: sum("operatingProfit"), peakCash: Math.max(0, -min), peakIndex: minAt, contributionOnly } };
     }
-    return { addMonths, monthSpan, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel };
+    // ---- cohorts ----
+    function toDay(v) {
+      if (v == null) return null;
+      const s = String(v).trim();
+      let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+      m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+      m = s.match(/^(\d{4})-(\d{2})$/); if (m) return `${m[1]}-${m[2]}-01`;
+      return null;
+    }
+    const monthsBetween = (a, b) => { const [y1, m1] = ym(a), [y2, m2] = ym(b); return (y2 - y1) * 12 + (m2 - m1); };
+    function cohortMatrix(rows, acqCol, ordCol, valCol) {
+      const out = {};
+      (rows || []).forEach((r) => {
+        const a = toDay(r[acqCol]), o = toDay(r[ordCol]); const v = Number(r[valCol]);
+        if (!a || !o || !isFinite(v)) return;
+        const row = out[a.slice(0, 7)] || (out[a.slice(0, 7)] = {});
+        row[o.slice(0, 7)] = (row[o.slice(0, 7)] || 0) + v;
+      });
+      return out;
+    }
+    // A date is an acquisition date only if no customer bought before it.
+    function acquisitionValid(matrix) {
+      return Object.entries(matrix).every(([a, row]) => Object.entries(row).every(([o, v]) => o >= a || !v));
+    }
+    // Revenue per new customer by months since acquisition. Development factors over the cohorts seen at both
+    // ages, weighted by cohort size, so ages only old cohorts reach do not skew the curve. Ages after the last
+    // one seen by 3+ cohorts take the mean of the last three measured ages (1+).
+    function cohortCurve(matrix, sizes, endKey) {
+      const cs = Object.keys(sizes).filter((c) => sizes[c] > 0 && c <= endKey).sort();
+      const cum = {};
+      cs.forEach((c) => { let a = 0; const n = monthsBetween(c, endKey); cum[c] = []; for (let k = 0; k <= n; k++) { a += ((matrix[c] || {})[addMonths(c, k)] || 0) / sizes[c]; cum[c].push(a); } });
+      const seen = (k) => cs.filter((c) => cum[c].length > k);
+      const s0 = seen(0); const w0 = s0.reduce((a, c) => a + sizes[c], 0);
+      const C = [w0 ? s0.reduce((a, c) => a + sizes[c] * cum[c][0], 0) / w0 : 0];
+      let measured = s0.length >= 3 ? 0 : -1;
+      for (let k = 0; seen(k + 1).length; k++) {
+        const ss = seen(k + 1); const den = ss.reduce((a, c) => a + sizes[c] * cum[c][k], 0);
+        C.push(den > 0 ? C[k] * ss.reduce((a, c) => a + sizes[c] * cum[c][k + 1], 0) / den : C[k]);
+        if (ss.length >= 3) measured = k + 1;
+      }
+      const r = C.map((v, k) => (k ? v - C[k - 1] : v));
+      const ages = []; for (let k = Math.max(1, measured - 2); k <= measured; k++) if (k >= 1) ages.push(r[k]);
+      const tail = ages.length ? ages.reduce((a, v) => a + v, 0) / ages.length : 0;
+      return { curve: (k) => (k <= measured ? r[k] : tail), measured, tail, r };
+    }
+    function noCurve({ windowRevenue, windowNew, aov, customerBase }) {
+      if (!(customerBase > 0)) return { error: "customer_base" };
+      return { r0: aov, repeat: (windowRevenue - windowNew * aov) / 12 / customerBase };
+    }
+    // Revenue from customers acquired before the horizon, per horizon month.
+    function existingRevenue(o) {
+      const cal = (k) => ym(k)[1] - 1;
+      const s = o.seasonRevenue || Array(12).fill(1);
+      if (o.mode === "no_curve") return o.horizonKeys.map((k) => o.repeatTotal / 12 * s[cal(k)]);
+      const cohorts = Object.keys(o.sizes || {});
+      const aMonth = o.anchor && o.anchor.slice(0, 7);
+      const scale = (c) => { if (c !== aMonth) return 1; const d = +o.anchor.slice(8, 10); return d > 0 ? dim(c) / d : 1; };
+      const inRange = (k) => cohorts.reduce((a, c) => a + (((o.matrix[c] || {})[k]) || 0), 0);
+      const pre = (ks) => ks.reduce((a, k) => a + Math.max(0, ((o.totalByMonth || {})[k] || 0) - inRange(k)), 0);
+      const preWin = pre(o.windowMonths || []), prePrev = pre(o.prevMonths || []);
+      const ratio = prePrev > 0 ? preWin / prePrev : 1;
+      return o.horizonKeys.map((k) => {
+        let v = cohorts.reduce((a, c) => a + o.sizes[c] * scale(c) * o.curve(monthsBetween(c, k)), 0);
+        return v + preWin / 12 * ratio * s[cal(k)];
+      });
+    }
+    return { addMonths, monthSpan, monthsBetween, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel,
+      toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue };
   })();
   // forecast-core:end
   function toDay(v) {
