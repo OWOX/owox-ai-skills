@@ -63,27 +63,34 @@ button { font: inherit; }
 [hidden] { display: none !important; }
 
 /* Header */
-.top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px 24px; }
-.top .asof { grid-column: 1 / -1; text-align: left; }
-.brand { min-width: 0; }
+/* Two rows: the title with the project name | the controls; the tabs | the data line under the controls. */
+.top { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand controls" "tabs meta"; align-items: center; gap: 14px 24px; }
+.brand__row { grid-area: brand; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 0.4em; min-width: 0; font: 500 clamp(22px, 2.4vw, 30px)/1.15 var(--font-body); }
+.brand__row h1 { margin: 0 !important; font: inherit; letter-spacing: -.02em; min-width: 0; }
 /* The logo sits on the title's line: centred on it and sized from the title's own font size. */
-.brand__row { display: flex; align-items: center; gap: 0.32em; margin-top: 8px; min-width: 0; font: 500 clamp(1.9rem, 4.2vw, 48px)/1.06 var(--font-body); }
-.brand__row h1 { margin: 0 !important; font: inherit; letter-spacing: -.03em; min-width: 0; text-wrap: balance; }
 .brand__logo { display: block; height: calc(var(--logo-scale, 1) * 0.92em); width: auto; max-width: 4.5em; flex-shrink: 0; object-fit: contain; }
-@media (max-width: 680px) { .top { grid-template-columns: minmax(0, 1fr); } }
-.top h1 { font: 500 clamp(1.9rem, 4.2vw, 48px)/1.06 var(--font-body); letter-spacing: -.03em; margin: 0; text-wrap: balance; }
+.brand__kicker { margin-left: .5em; padding-left: .9em; border-left: 1px solid var(--border-default); line-height: 1.2; }
+.brand__kicker:empty { display: none; }
+.top .controls__row { grid-area: controls; }
+.top .tabs { grid-area: tabs; flex-wrap: wrap; overflow: visible; }
+.top__meta { grid-area: meta; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; }
+@media (max-width: 680px) {
+  .top { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brand" "controls" "tabs" "meta"; }
+  .top__meta { align-items: flex-start; }
+}
+.top h1 { letter-spacing: -.02em; margin: 0; }
 .top .lede { margin: 10px 0 0; color: var(--text-secondary); max-width: 66ch; }
 .controls { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .controls__row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.progress { grid-column: 2; justify-self: end; margin: -4px 0 0; color: var(--text-secondary); }
-@media (max-width: 680px) { .progress { grid-column: 1; justify-self: start; } }
+.progress { margin: 0; color: var(--text-secondary); }
 @media (max-width: 680px) { .controls__row { justify-content: flex-start; } }
 .btn { font: 500 15px/1 var(--font-body); height: 40px; padding: 0 20px; background: var(--cta-fill); color: var(--cta-ink); border: 0; border-radius: var(--radius); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .btn:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,.85); }
 .btn[disabled] { opacity: .55; cursor: default; box-shadow: none; }
 .btn--ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--border-default); }
 .select { height: 40px; padding: 0 12px; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius); font: 400 14px var(--font-body); }
-.asof { text-align: right; margin: 0; color: var(--text-muted); }
+.asof { text-align: right; margin: 0; color: var(--text-muted); max-width: 70ch; }
+@media (max-width: 680px) { .asof { text-align: left; } }
 .select:disabled { opacity: .6; cursor: default; }
 .summary { margin: 0; padding: 14px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius); color: var(--text-primary); font-size: 16.5px; }
 .summary b { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -132,7 +139,18 @@ button { font: inherit; }
 .help__btn { width: 18px; height: 18px; border: 1px solid var(--border-default); border-radius: var(--radius); background: transparent; color: var(--text-muted); font: 400 10.5px/1 var(--font-mono); cursor: help; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
 .help__pop { position: absolute; left: 0; top: calc(100% + 8px); width: min(300px, 78vw); z-index: 6; background: var(--bg-nested); border: 1px solid var(--border-default); padding: 10px 14px; color: var(--text-secondary); font: 400 13px/1.55 var(--font-body); text-transform: none; letter-spacing: 0; display: none; }
 .help:hover .help__pop, .help:focus-within .help__pop { display: block; }
-.help__pop p { margin: 0; } .help__pop p + p { margin-top: 6px; color: var(--text-muted); font: 400 11.5px/1.5 var(--font-mono); }
+.help__pop p { margin: 0; }
+.help__pop { overflow-wrap: anywhere; }
+.help__pop.pop--right { left: auto; right: 0; }
+.pop--assume { width: min(340px, 80vw); }
+.pop--assume .pop__head { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--text-primary); font: 500 13.5px/1.35 var(--font-body); }
+.tag--assume { border-color: var(--warn); color: var(--warn); margin: 0; flex-shrink: 0; }
+.pop--assume .pop__dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; margin: 8px 0 0; }
+.pop--assume dt { font: 400 10px/1.6 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-decor); }
+.pop--assume dd { margin: 0; color: var(--text-secondary); font: 400 12.5px/1.45 var(--font-body); }
+.pop--assume dd.num { font: 400 12px/1.45 var(--font-mono); }
+.pop--assume .pop__fix { margin: 10px 0 0; padding-top: 8px; border-top: 1px dashed var(--border-default); color: var(--text-secondary); font: 400 12.5px/1.45 var(--font-body); }
+.pop--assume .pop__fix code { font: 400 12px var(--font-mono); color: var(--text-primary); } .help__pop p + p { margin-top: 6px; color: var(--text-muted); font: 400 11.5px/1.5 var(--font-mono); }
 
 /* Charts */
 .chart { position: relative; min-height: 120px; }
@@ -209,30 +227,87 @@ details.about[open] > summary::before, details.log[open] > summary::before { con
 .call__line { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
 pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1px solid var(--border-quiet); font: 400 11.5px/1.5 var(--font-mono); color: var(--text-secondary); overflow-x: auto; white-space: pre; }
 .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+/* Forecast */
+.help__btn--assume { color: var(--warn); border-color: var(--warn); font-weight: 700; }
+.help__pop a { color: var(--text-link); }
+/* Levers: a compact grid, one row on desktop when they fit. Every name reserves two lines so the tracks
+   line up; the grey triangle under a track is the baseline, the handle is the target. */
+.levers { display: grid; grid-template-columns: repeat(auto-fit, minmax(146px, 1fr)); gap: 12px 22px; }
+.lever { display: grid; gap: 2px; min-width: 0; }
+.lever__name { display: flex; gap: 6px; align-items: center; margin: 0; min-width: 0; min-height: 20px; font: 500 13.5px/1.35 var(--font-body); }
+.lever__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* While the viewer moves a lever, the chart below stays in view: the levers block sticks to the top on
+   screens tall and wide enough to spare it. */
+@media (min-width: 980px) and (min-height: 700px) { .block--sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; box-shadow: 0 6px 16px -10px rgba(0,0,0,.6); } }
+.block--sticky .block__body { padding-block: 12px 14px; }
+.block--sticky .block__head { flex-wrap: wrap; row-gap: 6px; padding-block: 6px; }
+.select--sm { height: 26px; padding: 0 8px; font-size: 12.5px; max-width: 240px; }
+.scn-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+.scn-form input { height: 28px; padding: 0 10px; min-width: 0; flex: 1 1 220px; max-width: 360px; background: var(--bg-nested); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius); font: 400 13px var(--font-body); }
+.scn { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.icon-btn { color: var(--text-secondary); }
+.icon-btn:hover { color: var(--text-primary); }
+.icon-btn svg { width: 16px; height: 16px; }
+.xport--on .xport__btn { opacity: 1; }
+.scn-ask { font: 400 12px var(--font-mono); color: var(--text-secondary); }
+.scn-opt { display: inline-flex; align-items: center; gap: 4px; font: 400 12.5px var(--font-body); color: var(--text-secondary); cursor: pointer; }
+.scn-msg { margin: 0 0 10px; font: 400 12px/1.5 var(--font-mono); color: var(--warn); }
+.lever__track { position: relative; height: 26px; display: flex; align-items: center; }
+.lever input[type=range] { width: 100%; margin: 0; accent-color: var(--metric); cursor: pointer; }
+.lever__mark { position: absolute; top: 19px; width: 0; height: 0; margin-left: -5px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--text-muted); pointer-events: none; }
+.lever__vals { display: flex; justify-content: space-between; gap: 6px; margin: 0; white-space: nowrap; font: 400 11.5px/1.4 var(--font-mono); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lever__vals b { color: var(--text-primary); font-weight: 700; }
+.lever__vals em { font-style: normal; }
+.lever__vals .tgt, .lever__vals .tgt b { color: var(--metric); }
+.fc-lede { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--text-secondary); }
+.fc-lede b { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+
+.fstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px 20px; }
+.fstat { min-width: 0; padding-left: 12px; border-left: 2px solid var(--metric); }
+.fstat__name { display: flex; align-items: center; gap: 6px; margin: 0; font: 400 10.5px/1.5 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.fstat__value { margin: 2px 0 0; font: 700 22px/1.15 var(--font-mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.fstat__sub { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; font: 400 11.5px/1.5 var(--font-mono); color: var(--text-muted); }
+.fstat__sub em { font-style: normal; }
+.block--fstats .block__body { padding-block: 12px 14px; }
+.fchart__top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 0 0 6px; }
+.fchart__top .switch, .fchart__top .legend { margin: 0; }
+.legend i.spend { background: color-mix(in srgb, var(--warn) 75%, transparent); }
+.switch { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius); margin: 0 0 8px; }
+.switch button { background: transparent; border: 0; color: var(--text-secondary); font: 400 11.5px/1 var(--font-mono); padding: 7px 10px; cursor: pointer; }
+.switch button[aria-pressed="true"] { background: var(--bg-nested); color: var(--text-primary); }
+.legend i.base { background: color-mix(in srgb, var(--metric) 45%, transparent); }
+.legend i.new { background: var(--metric-2); }
+.legend i.hatch { background: repeating-linear-gradient(45deg, var(--metric) 0 2px, transparent 2px 5px); }
+.legend i.budget { height: 0; border-top: 2px dashed var(--plan); background: none; }
+.legend i.profit { height: 0; border-top: 2px solid var(--ok); background: none; }
+td.fc-wrap { min-width: 150px; max-width: 260px; overflow-wrap: anywhere; }
+td.fc-formula { white-space: normal; min-width: 220px; text-align: left; font: 400 12px/1.5 var(--font-mono); color: var(--text-secondary); }
+td.fc-wrap { white-space: normal; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .block, .help__pop { transition: none; } }
 __THEME_CSS__
 </style>
 
 <div class="page" id="page">
   <header class="top">
-    <div class="brand">
-      <p class="mono-label" id="kicker"></p>
-      <div class="brand__row">
-        <img class="brand__logo" id="logo" alt="" hidden>
-        <h1 id="title"></h1>
-      </div>
+    <div class="brand__row">
+      <img class="brand__logo" id="logo" alt="" hidden>
+      <h1 id="title"></h1>
+      <span class="mono-label brand__kicker" id="kicker"></span>
     </div>
     <div class="controls__row">
       <select class="select" id="period" aria-label="Period"></select>
       <select class="select" id="compare" aria-label="Compare with" hidden><option value="previous">vs the period before</option><option value="last_year">vs the same period last year</option></select>
       <button class="btn" id="refresh" type="button" disabled>Refresh data</button>
     </div>
-    <p class="mono progress" id="progress" hidden></p>
-    <p class="mono asof" id="asof">Connecting to OWOX…</p>
+    <nav class="tabs" id="tabs" role="tablist" hidden></nav>
+    <div class="top__meta">
+      <p class="mono progress" id="progress" hidden></p>
+      <p class="mono asof" id="asof">Connecting to OWOX…</p>
+    </div>
   </header>
   <p class="state" id="page-state" hidden></p>
   <div class="summary" id="summary" hidden></div>
-  <nav class="tabs" id="tabs" role="tablist" hidden></nav>
   <main id="pages"></main>
   <details class="block about" id="about">
     <summary><span class="mono-label">About these numbers</span></summary>
@@ -270,7 +345,7 @@ __THEME_CSS__
   const isNum = (v) => typeof v === "number" && isFinite(v);
 
   // ---------- theme: dark first, light when the viewer's theme asks for it (CSS tokens) ----------
-  if (!(CFG.theme && CFG.theme.grid === false)) document.body.classList.add("grid-bg");
+  if (CFG.theme && CFG.theme.grid === true) document.body.classList.add("grid-bg");
 
   // ---------- dates (ISO day strings, UTC math) ----------
   const D = {
@@ -285,6 +360,324 @@ __THEME_CSS__
     diff(a, b) { return Math.round((D.parse(b) - D.parse(a)) / 864e5); },
     today() { return new Date().toISOString().slice(0, 10); },
   };
+  // forecast-core:start
+  // The forecast's arithmetic: pure functions, no DOM, nothing from outside this block (Node tests load it
+  // straight from this file). Month keys are "YYYY-MM", days "YYYY-MM-DD".
+  const FC = (() => {
+    const ym = (k) => [+k.slice(0, 4), +k.slice(5, 7)];
+    const key = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
+    function addMonths(k, n) { const [y, m] = ym(k); const t = y * 12 + (m - 1) + n; return key(Math.floor(t / 12), (t % 12 + 12) % 12 + 1); }
+    function monthSpan(a, b) { const out = []; for (let k = a; k <= b; k = addMonths(k, 1)) out.push(k); return out; }
+    const dim = (k) => { const [y, m] = ym(k); return new Date(Date.UTC(y, m, 0)).getUTCDate(); };
+    function lastFullMonth(day) { const k = day.slice(0, 7); return +day.slice(8, 10) === dim(k) ? k : addMonths(k, -1); }
+    // The window every baseline reads: 12 full months ending at the earliest source's last full month.
+    function forecastWindow(anchor, sourceDays) {
+      const to = [anchor, ...(sourceDays || [])].filter(Boolean).map(lastFullMonth).sort()[0];
+      const from = addMonths(to, -11);
+      return { from, to, months: monthSpan(from, to) };
+    }
+    function horizon(anchor, kind) {
+      const start = addMonths(anchor.slice(0, 7), 1);
+      const end = kind === "through_next_december" ? `${+anchor.slice(0, 4) + 1}-12` : addMonths(start, 11);
+      return monthSpan(start, end);
+    }
+    const lerp = (base, target, t, H) => H <= 1 ? target : base + (target - base) * (t - 1) / (H - 1);
+    // Each calendar month's value over the 24 months ending at endKey ÷ its centred 2×12 moving average,
+    // normalised to mean 1 (index 0 = January). Null without 24 full months.
+    function seasonality(byMonth, endKey) {
+      const ks = monthSpan(addMonths(endKey, -23), endKey);
+      const x = ks.map((k) => byMonth[k]);
+      if (x.some((v) => typeof v !== "number" || !isFinite(v))) return null;
+      const out = Array(12).fill(null);
+      for (let i = 6; i <= 17; i++) {
+        let ma = 0.5 * x[i - 6] + 0.5 * x[i + 6];
+        for (let j = i - 5; j <= i + 5; j++) ma += x[j];
+        ma /= 12;
+        if (!(ma > 0)) return null;
+        out[ym(ks[i])[1] - 1] = x[i] / ma;
+      }
+      const mean = out.reduce((a, v) => a + v, 0) / 12;
+      return mean > 0 ? out.map((v) => v / mean) : null;
+    }
+    // The forecast for t = 1…H. b holds the baselines, levers the targets the viewer set. The budget lever is
+    // the horizon's total, spread by spend seasonality; every other lever moves in a straight line from its
+    // baseline in month 1 to its target in month H (repeat is a multiplier from 1 on ages 1+).
+    function forecastModel(b, levers, H) {
+      const lv = levers || {};
+      const val = (k, base) => (lv[k] == null ? base : lv[k]);
+      const cacAt = (t) => lerp(b.cac, val("cac", b.cac), t, H);
+      for (let t = 1; t <= H; t++) { const c = cacAt(t); if (!(c > 0) || !isFinite(c)) return { error: "cac" }; }
+      if (!b.curve) return { error: "curve" };
+      if (b.margin == null || !isFinite(b.margin)) return { error: "margin" };
+      const curve = typeof b.curve === "function" ? b.curve : (k) => b.curve[Math.min(k, b.curve.length - 1)];
+      const cal = (t) => (b.startCal + t - 1) % 12;
+      const s = b.seasonSpend || Array(12).fill(1);
+      let sTot = 0; for (let t = 1; t <= H; t++) sTot += s[cal(t)];
+      const B = val("budget", b.budget);
+      const contributionOnly = b.fixed == null && lv.fixed_costs == null;
+      const fixBase = b.fixed == null ? 0 : b.fixed;
+      const N = [], rows = [];
+      let cum = 0, min = 0, minAt = null;
+      for (let t = 1; t <= H; t++) {
+        const budget = sTot > 0 ? B * s[cal(t)] / sTot : 0;
+        const cac = cacAt(t);
+        N.push(budget / cac);
+        const r0 = lerp(curve(0), val("first_month_revenue", curve(0)), t, H), rep = lerp(1, val("repeat", 1), t, H);
+        let newRev = 0;
+        for (let j = 1; j <= t; j++) { const age = t - j; newRev += N[j - 1] * (age === 0 ? r0 : curve(age) * rep); }
+        const baseRev = ((b.baseRev || [])[t - 1] || 0) * lerp(1, val("existing", 1), t, H);
+        const revenue = baseRev + newRev;
+        const margin = lerp(b.margin, val("margin", b.margin), t, H);
+        const grossProfit = revenue * margin;
+        const fixed = contributionOnly ? 0 : lerp(fixBase, val("fixed_costs", fixBase), t, H);
+        const operatingProfit = grossProfit - budget - fixed;
+        cum += operatingProfit;
+        if (cum < min) { min = cum; minAt = t - 1; }
+        rows.push({ budget, cac, newCustomers: N[t - 1], newRev, baseRev, revenue, grossProfit, fixed, operatingProfit, cumCash: cum });
+      }
+      const sum = (f) => rows.reduce((a, r) => a + r[f], 0);
+      const nTot = sum("newCustomers");
+      return { rows, totals: { revenue: sum("revenue"), newCustomers: nTot, budget: sum("budget"), cac: nTot > 0 ? sum("budget") / nTot : null, operatingProfit: sum("operatingProfit"), peakCash: Math.max(0, -min), peakIndex: minAt, contributionOnly } };
+    }
+    // ---- cohorts ----
+    function toDay(v) {
+      if (v == null) return null;
+      const s = String(v).trim();
+      let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+      m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+      m = s.match(/^(\d{4})-(\d{2})$/); if (m) return `${m[1]}-${m[2]}-01`;
+      return null;
+    }
+    const monthsBetween = (a, b) => { const [y1, m1] = ym(a), [y2, m2] = ym(b); return (y2 - y1) * 12 + (m2 - m1); };
+    function cohortMatrix(rows, acqCol, ordCol, valCol) {
+      const out = {};
+      (rows || []).forEach((r) => {
+        const a = toDay(r[acqCol]), o = toDay(r[ordCol]); const v = Number(r[valCol]);
+        if (!a || !o || !isFinite(v)) return;
+        const row = out[a.slice(0, 7)] || (out[a.slice(0, 7)] = {});
+        row[o.slice(0, 7)] = (row[o.slice(0, 7)] || 0) + v;
+      });
+      return out;
+    }
+    // A date is an acquisition date only if no customer bought before it.
+    function acquisitionValid(matrix) {
+      return Object.entries(matrix).every(([a, row]) => Object.entries(row).every(([o, v]) => o >= a || !v));
+    }
+    // Revenue per new customer by months since acquisition. Development factors over the cohorts seen at both
+    // ages, weighted by cohort size, so ages only old cohorts reach do not skew the curve. Ages after the last
+    // one seen by 3+ cohorts take the mean of the last three measured ages (1+).
+    function cohortCurve(matrix, sizes, endKey) {
+      const cs = Object.keys(sizes).filter((c) => sizes[c] > 0 && c <= endKey).sort();
+      const cum = {};
+      cs.forEach((c) => { let a = 0; const n = monthsBetween(c, endKey); cum[c] = []; for (let k = 0; k <= n; k++) { a += ((matrix[c] || {})[addMonths(c, k)] || 0) / sizes[c]; cum[c].push(a); } });
+      const seen = (k) => cs.filter((c) => cum[c].length > k);
+      const s0 = seen(0); const w0 = s0.reduce((a, c) => a + sizes[c], 0);
+      const C = [w0 ? s0.reduce((a, c) => a + sizes[c] * cum[c][0], 0) / w0 : 0];
+      let measured = s0.length >= 3 ? 0 : -1;
+      for (let k = 0; seen(k + 1).length; k++) {
+        const ss = seen(k + 1); const den = ss.reduce((a, c) => a + sizes[c] * cum[c][k], 0);
+        C.push(den > 0 ? C[k] * ss.reduce((a, c) => a + sizes[c] * cum[c][k + 1], 0) / den : C[k]);
+        if (ss.length >= 3) measured = k + 1;
+      }
+      const r = C.map((v, k) => (k ? v - C[k - 1] : v));
+      const ages = []; for (let k = Math.max(1, measured - 2); k <= measured; k++) if (k >= 1) ages.push(r[k]);
+      const tail = ages.length ? ages.reduce((a, v) => a + v, 0) / ages.length : 0;
+      return { curve: (k) => (k <= measured ? r[k] : tail), measured, tail, r };
+    }
+    function noCurve({ windowRevenue, windowNew, aov, customerBase, months }) {
+      if (!(customerBase > 0)) return { error: "customer_base" };
+      return { r0: aov, repeat: (windowRevenue - windowNew * aov) / (months || 12) / customerBase };
+    }
+    // Revenue from customers acquired before the horizon, per horizon month.
+    function existingRevenue(o) {
+      const cal = (k) => ym(k)[1] - 1;
+      const s = o.seasonRevenue || Array(12).fill(1);
+      const perMonth = o.months || 12;
+      if (o.mode === "no_curve") return o.horizonKeys.map((k) => o.repeatTotal / perMonth * s[cal(k)]);
+      const cohorts = Object.keys(o.sizes || {});
+      const aMonth = o.anchor && o.anchor.slice(0, 7);
+      const scale = (c) => { if (c !== aMonth) return 1; const d = +o.anchor.slice(8, 10); return d > 0 ? dim(c) / d : 1; };
+      const inRange = (k) => cohorts.reduce((a, c) => a + (((o.matrix[c] || {})[k]) || 0), 0);
+      const pre = (ks) => ks.reduce((a, k) => a + Math.max(0, ((o.totalByMonth || {})[k] || 0) - inRange(k)), 0);
+      const preWin = pre(o.windowMonths || []), prePrev = pre(o.prevMonths || []);
+      const ratio = prePrev > 0 ? preWin / prePrev : 1;
+      return o.horizonKeys.map((k) => {
+        let v = cohorts.reduce((a, c) => a + o.sizes[c] * scale(c) * o.curve(monthsBetween(c, k)), 0);
+        return v + preWin / perMonth * ratio * s[cal(k)];
+      });
+    }
+    // Out of sample: rebuild the curve from data up to 12 months before endKey, predict the last 12 months'
+    // revenue of the cohorts OWOX counted, and compare with what OWOX recorded. Null under 24 months.
+    function modelFit(matrix, sizes, endKey) {
+      const cs = Object.keys(sizes).filter((c) => c <= endKey);
+      if (cs.filter((c) => c > addMonths(endKey, -24)).length < 24) return null;
+      const cut = addMonths(endKey, -12);
+      const tm = {}, ts = {};
+      cs.filter((c) => c <= cut).forEach((c) => { ts[c] = sizes[c]; tm[c] = {}; Object.entries(matrix[c] || {}).forEach(([o, v]) => { if (o <= cut) tm[c][o] = v; }); });
+      const { curve } = cohortCurve(tm, ts, cut);
+      const last = monthSpan(addMonths(cut, 1), endKey);
+      let predicted = 0, actual = 0;
+      cs.forEach((c) => last.forEach((k) => { if (k < c) return; predicted += sizes[c] * curve(monthsBetween(c, k)); actual += ((matrix[c] || {})[k]) || 0; }));
+      return actual > 0 ? { predicted, actual, gapPct: (predicted - actual) / actual, from: last[0], to: endKey } : null;
+    }
+    // ---- baselines from OWOX rows ----
+    const isNum = (v) => typeof v === "number" && isFinite(v);
+    const fmtKey = (k) => new Date(Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+    const aggCol = (q) => { const a = ((q.input || {}).aggregations || [])[0]; return a ? `${a.field} | ${a.function}` : null; };
+    function monthlyOf(rows, date, value) {
+      const by = {};
+      (rows || []).forEach((r) => { const d = toDay(r[date]); const v = Number(r[value]); if (d && isFinite(v)) by[d.slice(0, 7)] = (by[d.slice(0, 7)] || 0) + v; });
+      return by;
+    }
+    function fieldValue(t, col) {
+      if (!t) return null;
+      const r = (t.rows || [])[0]; if (r && r[col] != null && isFinite(Number(r[col]))) return Number(r[col]);
+      const tot = (t.totals || {})[col]; return tot != null && isFinite(Number(tot)) ? Number(tot) : null;
+    }
+    // Every baseline the config declares, computed from the rows OWOX returned, plus the model's inputs.
+    function evaluate(fc, queries, tables, ctx) {
+      const bl = fc.baselines || {};
+      const need = new Set(Object.values(bl).map((b) => b.query).filter(Boolean));
+      (fc.source_dates || []).forEach((s) => need.add(s.query));
+      const missing = [...need].filter((q) => !tables[q]);
+      if (missing.length) return { missing };
+      const notes = [];
+      const win = forecastWindow(ctx.anchor, ctx.sourceMaxDays);
+      const H = horizon(ctx.anchor, fc.horizon || "next_12_months");
+      const span = `${fmtKey(win.from)} – ${fmtKey(win.to)}`;
+      const sumWin = (by) => win.months.reduce((a, k) => a + (by[k] || 0), 0);
+      const out = {}, series = {};
+      const put = (key, o) => { out[key] = Object.assign({ key, label: bl[key].label, window: [win.from, win.to], suggest: bl[key].suggest || null, inputs: [] }, o); };
+      // Facts first: series and fields.
+      Object.entries(bl).forEach(([key, b]) => {
+        if (b.op === "series") {
+          series[key] = monthlyOf(tables[b.query].rows, b.date, b.value);
+          put(key, { kind: "Fact", value: sumWin(series[key]), formula: `Σ ${b.value} by ${b.date}, ${span}` });
+        } else if (b.op === "field") {
+          let v = fieldValue(tables[b.query], b.value);
+          put(key, { kind: "Fact", value: v, formula: `${b.value}, ${span}` });
+        } else if (b.op === "input") {
+          put(key, { kind: "Your input", value: isNum(b.value) ? b.value : null, formula: b.quote ? `“${b.quote}”` : "left out", window: null });
+        }
+      });
+      Object.entries(bl).forEach(([key, b]) => {
+        if (b.op === "ratio") {
+          const n = out[b.numerator], d = out[b.denominator];
+          const v = n && d && isNum(n.value) && isNum(d.value) && d.value > 0 ? n.value / d.value : null;
+          const nb = bl[b.numerator], db = bl[b.denominator];
+          put(key, { kind: "Assumption", value: v, rule: `${n ? n.label : b.numerator} ÷ ${d ? d.label : b.denominator}`, formula: `${nb.value} ÷ ${db.value}, ${span}`, inputs: [{ key: b.numerator, label: n ? n.label : b.numerator, value: n && n.value }, { key: b.denominator, label: d ? d.label : b.denominator, value: d && d.value }] });
+          if (v == null) notes.push(`${bl[key].label} could not be computed: ${d ? d.label : b.denominator} is zero or missing over ${span}.${key === "cac" ? " Without a CAC the page cannot forecast new customers." : ""}`);
+        } else if (b.op === "seasonality") {
+          const s = seasonality(series[b.of] || {}, win.to);
+          if (!s) notes.push(`${bl[key].label}: fewer than 24 months of ${bl[b.of] ? bl[b.of].label : b.of} up to ${fmtKey(win.to)}, so every month is weighted the same.`);
+          put(key, { kind: "Assumption", value: s, flat: !s, rule: s ? "Each calendar month ÷ its 12-month moving average, normalised to 1" : "Not enough history: every month weighs the same", window: [addMonths(win.to, -23), win.to], formula: `each calendar month ÷ its centred 12-month moving average, 24 months to ${fmtKey(win.to)}` });
+        }
+      });
+      // Months of the window that have data: a young project averages over those, not over 12.
+      const monthsWith = (by) => win.months.filter((k) => isNum(by[k])).length;
+      const nRev = series.revenue ? monthsWith(series.revenue) : 12, nSpend = series.spend ? monthsWith(series.spend) : 12;
+      const nMin = Math.min(nRev, nSpend);
+      if (nMin > 0 && nMin < 12) notes.push(`Only ${nMin} months of data in ${span}: monthly baselines are averaged over those months, not 12.`);
+      if (out.margin && out.margin.kind === "Fact" && isNum(out.margin.value) && out.margin.value > 1) { out.margin.value /= 100; out.margin.formula += " (a percent, read as a fraction)"; }
+      // The revenue curve: cohorts when the acquisition date holds, else first order value plus repeat revenue.
+      const anchorMonth = ctx.anchor.slice(0, 7);
+      const sOf = (of) => { const k = Object.keys(bl).find((x) => bl[x].op === "seasonality" && bl[x].of === of); return k && out[k].value ? out[k].value : Array(12).fill(1); };
+      const sRev = sOf("revenue"), sSpend = sOf("spend");
+      const revBy = series.revenue || {};
+      const ck = Object.keys(bl).find((x) => bl[x].op === "cohort_curve");
+      let mode = "no_curve", curve = null, baseRev = null, fit = null;
+      if (ck) {
+        const b = bl[ck], q = queries[b.query] || {}, t = tables[b.query];
+        const matrix = cohortMatrix(t.rows, q.acquired_field, q.ordered_field, aggCol(q));
+        const sizes = {}; const sz = series[b.sizes] || {};
+        Object.keys(sz).forEach((k) => { if (sz[k] > 0 && k <= anchorMonth) sizes[k] = sz[k]; });
+        if (t.truncated) notes.push("The cohort query hit OWOX's 1,000 rows limit, so the revenue curve would be cut: the page uses first order value and repeat revenue instead.");
+        else if (!acquisitionValid(matrix)) notes.push(`The acquisition date (${q.acquired_field}) has orders before it, so it is not when customers were won: the page uses first order value and repeat revenue instead.`);
+        let c = null;
+        if (!t.truncated && acquisitionValid(matrix)) {
+          c = cohortCurve(matrix, sizes, win.to);
+          if (c.measured < 1) { notes.push("Fewer than 3 cohorts reach their second month, so the revenue curve cannot be measured yet: the page uses first order value and repeat revenue instead."); c = null; }
+        }
+        if (c) {
+          mode = "cohort_curve";
+          curve = c.curve;
+          const shown = []; for (let k = 0; k <= Math.min(c.measured, 5); k++) shown.push({ label: `Month ${k}`, value: c.curve(k) });
+          shown.push({ label: `Month ${c.measured + 1}+`, value: c.tail });
+          put(ck, { kind: "Assumption", value: c.curve(0), measured: c.measured, rule: "Revenue per new customer by month since the first order, averaged over the cohorts that reached each month", formula: `Σ ${aggCol(q)} by ${q.acquired_field} × ${q.ordered_field} ÷ new customers, development factors over the cohorts seen at both ages`, inputs: shown });
+          fit = modelFit(matrix, sizes, win.to);
+          baseRev = existingRevenue({ mode, months: nRev || 12, matrix, sizes, curve, horizonKeys: H, windowMonths: win.months, prevMonths: win.months.map((k) => addMonths(k, -12)), totalByMonth: revBy, seasonRevenue: sRev, anchor: ctx.anchor });
+        }
+      }
+      if (mode === "no_curve") {
+        const aov = out.aov && out.aov.value, base = out.customer_base && out.customer_base.value;
+        const winRev = out.revenue ? out.revenue.value : 0, winNew = out.new_customers ? out.new_customers.value : 0;
+        if (!isNum(aov)) notes.push("No average order value baseline: the page cannot price a new customer's first month.");
+        else {
+          const nc = isNum(base) ? noCurve({ windowRevenue: winRev, windowNew: winNew, aov, customerBase: base, months: nRev || 12 }) : { error: true };
+          const repeat = nc.error ? 0 : Math.max(0, nc.repeat);
+          if (nc.error) notes.push("No customer base baseline (customers with an order in the window): new customers are counted for their first month only.");
+          curve = (k) => (k === 0 ? aov : repeat);
+          if (ck) put(ck, { kind: "Assumption", value: aov, rule: "First month = average order value; later months = the window's repeat revenue per customer", formula: `first month = ${bl.aov.value}; later months = (window revenue − new customers × ${bl.aov.value}) ÷ 12 ÷ customer base`, inputs: [{ label: "Month 0", value: aov }, { label: "Month 1+", value: repeat }] });
+          baseRev = existingRevenue({ mode, months: nRev || 12, repeatTotal: Math.max(0, winRev - winNew * aov), horizonKeys: H, seasonRevenue: sRev });
+        }
+      }
+      const spendWin = out.spend ? out.spend.value : 0;
+      let margin = out.margin ? out.margin.value : null;
+      if (isNum(margin) && margin > 1) margin /= 100;
+      const cac = out.cac ? out.cac.value : null;
+      const b = { budget: out.spend && nSpend ? spendWin * H.length / nSpend : 0, cac: out.spend ? cac : 1, curve, seasonSpend: sSpend, startCal: +H[0].slice(5, 7) - 1, baseRev, margin, fixed: out.fixed_costs ? out.fixed_costs.value : null };
+      if (!out.spend) notes.push("No ad spend baseline: the forecast covers existing customers only, with no budget or CAC.");
+      const history = {};
+      monthSpan(addMonths(win.to, -11), anchorMonth).forEach((k) => { history[k] = { revenue: revBy[k], spend: (series.spend || {})[k], newCustomers: (series.new_customers || {})[k] }; });
+      return { mode, baselines: out, notes, fit, model: { b, H: H.length, horizonKeys: H, windowKeys: win.months, history, anchorMonth, window: win } };
+    }
+    // Lever ranges are the engine's own: half to double the baseline; margin 0–100%; fixed costs from 0 to
+    // double, or to half of existing customers' monthly revenue when the user left them out.
+    const avg = (xs) => (xs && xs.length ? xs.reduce((a, v) => a + (v || 0), 0) / xs.length : null);
+    function leverRange(key, base, b) {
+      if (key === "margin") return [0, 1];
+      if (key === "fixed_costs") { if (isNum(base) && base > 0) return [0, base * 2]; const m = b && avg(b.baseRev); return isNum(m) && m > 0 ? [0, m / 2] : null; }
+      return isNum(base) && base > 0 ? [base / 2, base * 2] : null;
+    }
+    // Every lever is shown in the unit people plan in: repeat revenue as dollars per customer over months
+    // 2–12, existing customers as dollars per month. toModelLevers turns those into the model's multipliers.
+    function leverBase(key, b) {
+      const curve = typeof b.curve === "function" ? b.curve : (b.curve ? (k) => b.curve[Math.min(k, b.curve.length - 1)] : null);
+      if (key === "repeat") { if (!curve) return null; let s = 0; for (let k = 1; k <= 11; k++) s += curve(k); return s; }
+      if (key === "existing") return avg(b.baseRev);
+      if (key === "fixed_costs") return b.fixed == null ? 0 : b.fixed;
+      return { budget: b.budget, cac: b.cac, first_month_revenue: curve ? curve(0) : null, margin: b.margin }[key];
+    }
+    function toModelLevers(lv, b) {
+      const out = Object.assign({}, lv);
+      ["repeat", "existing"].forEach((k) => { if (out[k] == null) return; const base = leverBase(k, b); out[k] = base > 0 ? out[k] / base : 1; });
+      return out;
+    }
+    function restoreLevers(saved, b, keys) {
+      const out = {};
+      (keys || []).forEach((k) => {
+        const base = leverBase(k, b), r = leverRange(k, base, b), v = saved && saved[k];
+        if (!r && base == null) return;
+        out[k] = isNum(v) && r ? Math.min(r[1], Math.max(r[0], v)) : base;
+      });
+      return out;
+    }
+    // The forecast as a CSV file: the scenario, the levers, the months, the baselines. Numbers stay raw.
+    function forecastCsv(o) {
+      const cell = (v) => { if (v == null) return ""; const t = typeof v === "number" ? String(Math.round(v * 100) / 100) : String(v); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+      const line = (xs) => xs.map(cell).join(",");
+      const out = [o.title, line(["Project", o.project]), line(["Generated", o.generatedAt])];
+      if (o.scenario) out.push(line(["Scenario", o.scenario]));
+      out.push("", line(["Lever", "Now", "Target", "Kind"]), ...o.levers.map((l) => line([l.label, l.now, l.target, l.kind])));
+      out.push("", line(["Month", "Existing customers revenue", "New customers revenue", "Revenue", "Ad spend", "New customers", "CAC", "Gross profit", "Fixed costs", "Operating profit", "Cumulative cash"]));
+      o.rows.forEach((r, i) => out.push(line([o.months[i], r.baseRev, r.newRev, r.revenue, r.budget, r.newCustomers, r.cac, r.grossProfit, r.fixed, r.operatingProfit, r.cumCash])));
+      out.push("", line(["Baseline", "Value", "Kind", "How it is read", "Window"]), ...o.baselines.map((b) => line([b.label, Array.isArray(b.value) ? b.value.map((v) => Math.round(v * 100) / 100).join(" ") : b.value, b.kind, b.formula, b.window ? `${b.window[0]} – ${b.window[1]}` : ""])));
+      return out.join("\n") + "\n";
+    }
+    return { forecastCsv, addMonths, monthSpan, monthsBetween, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel,
+      toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue, modelFit, evaluate, leverRange, leverBase, toModelLevers, restoreLevers };
+  })();
+  // forecast-core:end
   function toDay(v) {
     if (v == null) return null;
     const s = String(v).trim();
@@ -409,6 +802,58 @@ __THEME_CSS__
   // Every call the page makes: its key, the query id, the exact input sent to OWOX.
   // Queries load per tab: a tab's queries run when the viewer first opens it (the anchor query always runs).
   const visited = new Set();
+  // ---------- forecast: its queries, window and baselines ----------
+  const FCFG = CFG.forecast || null;
+  const FC_TYPES = new Set(["forecast_levers", "forecast_cards", "forecast_chart", "forecast_assumptions"]);
+  // A page of forecast blocks only has no period: the period switch and its comparison are hidden.
+  const FC_ONLY = !!FCFG && !Object.keys(METRICS).length && PAGES.every((p) => (p.components || []).every((c) => FC_TYPES.has(c.type) || c.type === "data" || c.type === "notes"));
+  const fcQueryIds = () => { if (!FCFG) return []; const ids = new Set(Object.values(FCFG.baselines || {}).map((b) => b.query).filter(Boolean)); (FCFG.source_dates || []).forEach((x) => ids.add(x.query)); return [...ids]; };
+  // Each source's last complete day (a day from today on is still being written); undefined while loading.
+  function fcSourceDays() {
+    return (FCFG.source_dates || []).map((x) => {
+      const t = tableOf(x.query); if (!t) return undefined;
+      let max = null; t.rows.forEach((r) => { const d = toDay(r[x.value]); if (d && (!max || d > max)) max = d; });
+      if (!max) return null;
+      const today = D.today(); return max >= today ? D.add(today, -1) : max;
+    });
+  }
+  function fcWindow() {
+    if (!FCFG || !anchor) return null;
+    const days = fcSourceDays(); if (days.some((d) => d === undefined)) return null;
+    return FC.forecastWindow(anchor, days.filter(Boolean));
+  }
+  const fcEnd = () => { const w = fcWindow(); return w ? w.to : null; };
+  const lastDayOf = (k) => D.ymd(+k.slice(0, 4), +k.slice(5, 7), 31);
+  // trailing: 24 months to the anchor (the anchor month shows as partial Fact), or the 12-month window itself.
+  // cohort: 36 months to the anchor on both the acquisition and the order date.
+  function fcInput(q, base) {
+    const w = fcWindow(); if (!w) return null;
+    if (q.scope === "trailing") { const m = q.months || 24; return withDateFilter(base, q.date_field, [FC.addMonths(w.to, -(m - 1)) + "-01", m === 12 ? lastDayOf(w.to) : anchor]); }
+    const r = [FC.addMonths(anchor.slice(0, 7), -35) + "-01", anchor];
+    return withDateFilter(withDateFilter(base, q.acquired_field, r), q.ordered_field, r);
+  }
+  // Source of a forecast block: every Data Mart its baselines read, with the fields.
+  function fcSources() {
+    const by = new Map();
+    fcQueryIds().forEach((qid) => {
+      const q = QUERIES[qid]; if (!q || !q.data_mart_id) return;
+      const s0 = by.get(q.data_mart_id) || { role: "Fact", data_mart_id: q.data_mart_id, title: String(q.label || q.data_mart_id).split(" · ").pop(), fields: [] };
+      ((q.input || {}).fields || []).forEach((f) => { if (!s0.fields.some((x) => x.name === f)) s0.fields.push({ name: f }); });
+      by.set(q.data_mart_id, s0);
+    });
+    return [...by.values()];
+  }
+  let fcCache = null;
+  function fcState() {
+    if (!FCFG || !anchor) return null;
+    const w = fcWindow(); if (!w) return null;
+    const tables = {}; fcQueryIds().forEach((q) => { const t = tableOf(q); if (t) tables[q] = t; });
+    const sig = anchor + w.to + JSON.stringify(Object.keys(tables).map((q) => [q, store[q] && store[q].at, tables[q].rows.length]));
+    if (fcCache && fcCache.sig === sig) return fcCache.v;
+    const v = FC.evaluate(FCFG, QUERIES, tables, { anchor, sourceMaxDays: fcSourceDays().filter(Boolean) });
+    fcCache = { sig, v }; return v;
+  }
+  let fcEndSeen = null;
   function pageQueries(p) {
     const out = new Set();
     const fromMetric = (mid) => { const m = METRICS[mid]; if (!m) return; [m.series, m.window, m.plan, m.static].forEach((r) => r && out.add(r.query)); if (m.to_primary) (m.to_primary.multiply || []).forEach(fromMetric); };
@@ -421,6 +866,7 @@ __THEME_CSS__
       if (c.type === "drivers") (c.from || []).forEach((b) => fromBreakdown(COMPONENTS[b]));
     });
     if (CFG.primary_metric) fromMetric(CFG.primary_metric);
+    if ((p.components || []).some((c) => FC_TYPES.has(c.type))) fcQueryIds().forEach((q) => out.add(q));
     return out;
   }
   function neededQueries() {
@@ -438,6 +884,7 @@ __THEME_CSS__
       if (scope === "static") calls.push({ key: qid, qid, input: base, scope });
       else if (!anchor) return;
       else if (scope === "range") { const ch = rangeChunks(q, anchor); ch.forEach((w, i) => calls.push({ key: ch.length === 1 ? qid : `${qid}~${i}`, qid, input: withDateFilter(base, q.date_field, w), scope })); }
+      else if (scope === "trailing" || scope === "cohort") { const input = fcInput(q, base); if (input) calls.push({ key: qid, qid, input, scope }); }
       else if (scope === "window") {
         const w = winOf(period, anchor);
         calls.push({ key: `${qid}@cur`, qid, input: withDateFilter(base, q.date_field, w.cur, q.as_of), scope, window: "cur" });
@@ -526,6 +973,7 @@ __THEME_CSS__
       calls.forEach((c) => { const wk = c.key + "|" + JSON.stringify(c.input); const e = held.entries[wk]; if (e && !watches.has(wk)) { watches.set(wk, Object.assign({ fromCopy: true, unsub: () => {}, cancelled: false }, c)); store[c.key] = { table: e.table, error: null, at: e.at, loading: false }; used += 1; } });
       if (used) { servedFromCopy = true; Object.entries(held.ai || {}).forEach(([k, v]) => { if (v && v.sig && aiOf(k).status !== "done") ai[k] = { sig: v.sig, status: "done", data: v.data, code: null }; }); }
       if (used && CFG.anchor && calls.some((c) => c.qid === CFG.anchor.query)) { const before = anchor; computeAnchor(); if (anchor && anchor !== before) { syncWatches(trigger); return; } }
+      if (used && FCFG) { const e = fcEnd(); if (e !== fcEndSeen) { fcEndSeen = e; syncWatches(trigger); return; } }
     }
     const wanted = new Set(calls.map((c) => c.key + "|" + JSON.stringify(c.input)));
     for (const [k, w] of [...watches]) if (force || !wanted.has(k)) cancelWatch(k, w);
@@ -553,6 +1001,7 @@ __THEME_CSS__
       store[c.key] = { table: transient ? prev.table : null, error: ev.error, at: prev.at, loading: false };
     }
     if (CFG.anchor && c.qid === CFG.anchor.query) { const before = anchor; computeAnchor(); if (anchor && anchor !== before) syncWatches(before ? "anchor" : "open"); }
+    if (FCFG && (FCFG.source_dates || []).some((x) => x.query === c.qid)) { const e = fcEnd(); if (e !== fcEndSeen) { fcEndSeen = e; syncWatches("anchor"); } }
     noteCall(c, ev);
     renderAll();
   }
@@ -717,7 +1166,7 @@ __THEME_CSS__
     const b = el("button", "help__btn", "i"); b.type = "button"; b.setAttribute("aria-label", "About this number");
     const pop = el("span", "help__pop"); pop.setAttribute("role", "tooltip");
     lines.filter(Boolean).forEach((t) => pop.append(el("p", null, t)));
-    h.append(b, pop); return h;
+    h.append(b, pop); placePop(h, pop); return h;
   }
   function martUrl(id, field) {
     const base = `${APP}/ui/${encodeURIComponent(PROJECT.id)}/data-marts/${encodeURIComponent(id)}/data-setup`;
@@ -729,7 +1178,7 @@ __THEME_CSS__
     const sm = el("summary"); sm.append(document.createTextNode("Source")); d.append(sm);
     if (description) d.append(el("p", "src__text", description));
     // What each kind of number on the block is, said once, inside Source.
-    const KIND = { "Fact": "the value OWOX returned from the Data Mart", "Estimate": "a forecast the page projects from OWOX values, such as month to date ÷ days elapsed × days in the month", "AI calc": "arithmetic done in the page on OWOX values: sums over days, changes, shares", "Hypothesis": "an explanation to check, not a measured number" };
+    const KIND = { "Assumption": "computed in the page from OWOX values by a fixed rule; a calculated field would make it a Fact", "Your input": "a value you gave; OWOX does not hold it", "Fact": "the value OWOX returned from the Data Mart", "Estimate": "a forecast the page projects from OWOX values, such as month to date ÷ days elapsed × days in the month", "AI calc": "arithmetic done in the page on OWOX values: sums over days, changes, shares", "Hypothesis": "an explanation to check, not a measured number" };
     if (tags && tags.length) { const ul = el("ul", "src__kinds"); tags.forEach((t) => { const li = el("li"); li.append(el("span", "tag", t), document.createTextNode(KIND[t] || "")); ul.append(li); }); d.append(ul); }
     const grid = el("div", "src__grid");
     (sources || []).forEach((s) => {
@@ -844,10 +1293,10 @@ __THEME_CSS__
     if (!by || !anchor) { host.append(stateBox(metricKeys(m))); return; }
     const y = D.year(anchor), months = Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, "0")}`);
     const ly = (k) => `${y - 1}${k.slice(4)}`;
-    const curKey = D.monthKey(anchor);
+    const curMonth = D.monthKey(anchor);
     const ratio = flat(m);
     const cumulative = c.mode === "cumulative" && !ratio;
-    let fact = months.map((k) => k <= curKey && isNum(by[k]) ? by[k] : null);
+    let fact = months.map((k) => k <= curMonth && isNum(by[k]) ? by[k] : null);
     let prior = months.map((k) => isNum(by[ly(k)]) ? by[ly(k)] : null);
     let plan = months.map((k) => isNum(pm[k]) ? pm[k] : null);
     const target = ev && isNum(ev.target) && m.target.horizon === "year" ? ev.target : null;
@@ -858,9 +1307,9 @@ __THEME_CSS__
       if (!plan.some(isNum) && target) pace = months.map((k, i) => target * (i + 1) / 12);
     }
     // Month forecast for the running month (bars) or the full-year path (cumulative).
-    const mtdDays = D.diff(curKey + "-01", anchor) + 1, dimCur = D.dim(y, D.month(anchor));
+    const mtdDays = D.diff(curMonth + "-01", anchor) + 1, dimCur = D.dim(y, D.month(anchor));
     const curIdx = D.month(anchor) - 1;
-    const monthFc = !ratio && isNum(by[curKey]) && mtdDays < dimCur ? by[curKey] / mtdDays * dimCur : null;
+    const monthFc = !ratio && isNum(by[curMonth]) && mtdDays < dimCur ? by[curMonth] / mtdDays * dimCur : null;
     const fy = cumulative ? forecastYear(m) : null;
     const all = [...fact, ...prior, ...plan, ...(pace || []), monthFc, fy].filter(isNum);
     const yMax = niceMax(Math.max(...all, 0) * 1.05);
@@ -892,7 +1341,7 @@ __THEME_CSS__
     const tip = tooltip(host);
     hit.addEventListener("pointermove", (e) => {
       const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(11, Math.floor((px - L) / band)));
-      const lines = [fmtMonth(months[i] + "-01") + " " + y, `Fact ${fmt(fact[i], m.format)}${i === curIdx && D.diff(curKey + "-01", anchor) + 1 < dimCur ? " (to " + fmtDay(anchor, { year: undefined }) + ")" : ""}`];
+      const lines = [fmtMonth(months[i] + "-01") + " " + y, `Fact ${fmt(fact[i], m.format)}${i === curIdx && D.diff(curMonth + "-01", anchor) + 1 < dimCur ? " (to " + fmtDay(anchor, { year: undefined }) + ")" : ""}`];
       if (plan.some(isNum)) lines.push(`Plan ${fmt(plan[i], m.format)}`);
       if (pace) lines.push(`Pace to target ${fmt(pace[i], m.format)}`);
       lines.push(`${y - 1} ${fmt(prior[i], m.format)}`);
@@ -914,28 +1363,28 @@ __THEME_CSS__
     const m = METRICS[c.metric]; const ev = evaluate(c.metric);
     const by = monthly(m);
     if (!by || !anchor) { host.append(stateBox(metricKeys(m))); return; }
-    const keys = Object.keys(by).sort().filter((k) => k <= D.monthKey(anchor));
-    if (!keys.length) { host.append(el("p", "empty", "No rows for this range.")); return; }
-    const vals = keys.map((k) => by[k]); const tgt = ev && isNum(ev.target) ? ev.target : null;
-    const pm = planMonths(m) || {}; const plans = keys.map((k) => isNum(pm[k]) ? pm[k] : null);
+    const monthsShown = Object.keys(by).sort().filter((k) => k <= D.monthKey(anchor));
+    if (!monthsShown.length) { host.append(el("p", "empty", "No rows for this range.")); return; }
+    const vals = monthsShown.map((k) => by[k]); const tgt = ev && isNum(ev.target) ? ev.target : null;
+    const pm = planMonths(m) || {}; const plans = monthsShown.map((k) => isNum(pm[k]) ? pm[k] : null);
     // A ratio's line is read for its movement: the axis spans the values, the plan and the target, not zero.
     const span = [...vals, ...plans, ...(isNum(tgt) ? [tgt] : [])].filter(isNum);
     let lo = Math.min(...span), hi = Math.max(...span); const pad = (hi - lo || Math.abs(hi) || 1) * 0.15; lo = Math.max(0, lo - pad); hi = hi + pad;
     const W = chartWidth(c), H = 230, L = 56, R = 10, T = 12, B = 26;
-    const x = (i) => L + (keys.length === 1 ? 0.5 : i / (keys.length - 1)) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    const x = (i) => L + (monthsShown.length === 1 ? 0.5 : i / (monthsShown.length - 1)) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
     const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${c.title || m.label} by month` });
     for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4; svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v, m.format, true); svg.append(t); }
-    keys.forEach((k, i) => { if (k.endsWith("-01") || i === 0) { const t = svgEl("text", { x: x(i), y: H - 8, "text-anchor": "middle" }); t.textContent = k.endsWith("-01") ? k.slice(0, 4) : fmtMonth(k + "-01"); svg.append(t); } });
+    monthsShown.forEach((k, i) => { if (k.endsWith("-01") || i === 0) { const t = svgEl("text", { x: x(i), y: H - 8, "text-anchor": "middle" }); t.textContent = k.endsWith("-01") ? k.slice(0, 4) : fmtMonth(k + "-01"); svg.append(t); } });
     if (isNum(tgt)) svg.append(svgEl("line", { x1: L, x2: W - R, y1: y(tgt), y2: y(tgt), stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "6 4" }));
     if (plans.some(isNum)) svg.append(svgEl("path", { d: plans.map((v, i) => v == null ? "" : `${i && plans[i - 1] != null ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""), fill: "none", stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "6 4" }));
     const curPartial = anchor !== D.ymd(D.year(anchor), D.month(anchor), 31);
-    const full = curPartial ? keys.length - 1 : keys.length;
+    const full = curPartial ? monthsShown.length - 1 : monthsShown.length;
     svg.append(svgEl("path", { d: vals.slice(0, full).map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""), fill: "none", stroke: "var(--metric)", "stroke-width": 2.2 }));
     if (curPartial && full >= 1) svg.append(svgEl("path", { d: `M${x(full - 1)},${y(vals[full - 1])}L${x(full)},${y(vals[full])}`, stroke: "var(--metric)", "stroke-dasharray": "3 3", fill: "none" }));
-    vals.forEach((v, i) => svg.append(svgEl("circle", { cx: x(i), cy: y(v), r: i === keys.length - 1 && curPartial ? 3.5 : 2, fill: i === keys.length - 1 && curPartial ? "var(--bg-surface)" : "var(--metric)", stroke: "var(--metric)" })));
+    vals.forEach((v, i) => svg.append(svgEl("circle", { cx: x(i), cy: y(v), r: i === monthsShown.length - 1 && curPartial ? 3.5 : 2, fill: i === monthsShown.length - 1 && curPartial ? "var(--bg-surface)" : "var(--metric)", stroke: "var(--metric)" })));
     const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" }); svg.append(hit); host.append(svg);
     const tip = tooltip(host);
-    hit.addEventListener("pointermove", (e) => { const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(keys.length - 1, Math.round(((px - L) / (W - L - R)) * (keys.length - 1)))); const ln = [`${fmtMonth(keys[i] + "-01")} ${keys[i].slice(0, 4)}${i === keys.length - 1 && curPartial ? " (to date)" : ""}`, `${m.label} ${fmt(vals[i], m.format)}`]; if (isNum(plans[i])) ln.push(`Plan ${fmt(plans[i], m.format)}`); if (isNum(tgt)) ln.push(`Target ${fmt(tgt, m.format)}`); tip.show(e, ln); });
+    hit.addEventListener("pointermove", (e) => { const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(monthsShown.length - 1, Math.round(((px - L) / (W - L - R)) * (monthsShown.length - 1)))); const ln = [`${fmtMonth(monthsShown[i] + "-01")} ${monthsShown[i].slice(0, 4)}${i === monthsShown.length - 1 && curPartial ? " (to date)" : ""}`, `${m.label} ${fmt(vals[i], m.format)}`]; if (isNum(plans[i])) ln.push(`Plan ${fmt(plans[i], m.format)}`); if (isNum(tgt)) ln.push(`Target ${fmt(tgt, m.format)}`); tip.show(e, ln); });
     hit.addEventListener("pointerleave", () => tip.hide());
   }
 
@@ -948,7 +1397,7 @@ __THEME_CSS__
     const cur = snap ? tableOf(q) : tableOf(`${q}@cur`), cmp = snap ? { rows: [], totals: {} } : tableOf(`${q}@cmp`);
     if (!cur || !cmp) return null;
     const map = new Map();
-    const add = (t, which) => t.rows.forEach((r) => { const k = r[c.dimension] == null || r[c.dimension] === "" ? UNATTRIBUTED : String(r[c.dimension]); const o = map.get(k) || { key: k, cur: 0, cmp: 0 }; const v = Number(r[c.value]); if (isNum(v)) o[which] += v; if (c.target_value && which === "cur" && r[c.target_value] != null) o.target = Number(r[c.target_value]); map.set(k, o); });
+    const add = (t, which) => t.rows.forEach((r) => { const k = r[c.dimension] == null || r[c.dimension] === "" ? UNATTRIBUTED : String(r[c.dimension]); const o = map.get(k) || { dim: k, cur: 0, cmp: 0 }; const v = Number(r[c.value]); if (isNum(v)) o[which] += v; if (c.target_value && which === "cur" && r[c.target_value] != null) o.target = Number(r[c.target_value]); map.set(k, o); });
     add(cur, "cur"); add(cmp, "cmp");
     const rows = [...map.values()].map((o) => Object.assign(o, { delta: o.cur - o.cmp, pct: o.cmp ? (o.cur - o.cmp) / Math.abs(o.cmp) : null }));
     const totCur = isNum(cur.totals[c.value]) ? cur.totals[c.value] : rows.reduce((a, r) => a + r.cur, 0);
@@ -974,7 +1423,7 @@ __THEME_CSS__
     const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${c.title} by ${c.dimension_label || c.dimension}` });
     rows.forEach((r, i) => {
       const yy = T + i * rowH;
-      const lab = svgEl("text", { x: 0, y: yy + 18 }); lab.textContent = r.key.length > 22 ? r.key.slice(0, 21) + "…" : r.key; lab.setAttribute("style", "fill: var(--text-secondary)"); svg.append(lab);
+      const lab = svgEl("text", { x: 0, y: yy + 18 }); lab.textContent = r.dim.length > 22 ? r.dim.slice(0, 21) + "…" : r.dim; lab.setAttribute("style", "fill: var(--text-secondary)"); svg.append(lab);
       svg.append(svgEl("rect", { x: L, y: yy + 5, width: Math.max(1, x(r.cmp) - L), height: 7, fill: "var(--prior)" }));
       svg.append(svgEl("rect", { x: L, y: yy + 13, width: Math.max(1, x(r.cur) - L), height: 11, fill: "var(--metric)" }));
       if (isNum(r.target)) svg.append(svgEl("line", { x1: x(r.target), x2: x(r.target), y1: yy + 2, y2: yy + 27, stroke: "var(--plan)", "stroke-width": 2, "stroke-dasharray": "3 2" }));
@@ -984,7 +1433,7 @@ __THEME_CSS__
     });
     host.append(svg);
     const tip = tooltip(host);
-    svg.addEventListener("pointermove", (e) => { const i = e.target.dataset && e.target.dataset.i; if (i == null) return tip.hide(); const r = rows[+i]; tip.show(e, [r.key, `This period ${fmt(r.cur, m.format)}`, `Comparison ${fmt(r.cmp, m.format)}`, `Change ${fmtDelta(r.delta, m.format)} (${fmtPct(r.pct)})`].concat(isNum(r.target) ? [`Target ${fmt(r.target, m.format)}`] : [])); });
+    svg.addEventListener("pointermove", (e) => { const i = e.target.dataset && e.target.dataset.i; if (i == null) return tip.hide(); const r = rows[+i]; tip.show(e, [r.dim, `This period ${fmt(r.cur, m.format)}`, `Comparison ${fmt(r.cmp, m.format)}`, `Change ${fmtDelta(r.delta, m.format)} (${fmtPct(r.pct)})`].concat(isNum(r.target) ? [`Target ${fmt(r.target, m.format)}`] : [])); });
     svg.addEventListener("pointerleave", () => tip.hide());
     if (data.truncated) host.append(el("p", "state state--warn", "OWOX returned only part of the rows: raise the query limit or narrow it."));
   }
@@ -996,7 +1445,7 @@ __THEME_CSS__
     if (src.ratio) { host.append(el("p", "empty", "A rate does not add up across values, so it has no bridge.")); return; }
     const top = c.top || 6;
     const sorted = [...data.rows].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
-    const steps = sorted.slice(0, top).map((r) => ({ label: r.key, v: r.delta }));
+    const steps = sorted.slice(0, top).map((r) => ({ label: r.dim, v: r.delta }));
     const rest = sorted.slice(top).reduce((a, r) => a + r.delta, 0);
     if (sorted.length > top) steps.push({ label: "Other", v: rest });
     const bars = [{ label: "Comparison", v: data.totCmp, total: true }, ...steps, { label: "This period", v: data.totCur, total: true }];
@@ -1038,7 +1487,7 @@ __THEME_CSS__
       const data = breakdownData(b); if (!data) return null;
       const bm = METRICS[b.metric] || { format: b.format, label: b.title };
       const rows = [...data.rows].sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta)).slice(0, 8)
-        .map((r) => `  ${r.key}: ${fmt(r.cur, bm.format)} vs ${fmt(r.cmp, bm.format)} (${fmtPct(r.pct)})`).join("\n");
+        .map((r) => `  ${r.dim}: ${fmt(r.cur, bm.format)} vs ${fmt(r.cmp, bm.format)} (${fmtPct(r.pct)})`).join("\n");
       return `${b.title} (${bm.label}, by ${b.dimension_label || b.dimension}):\n${rows}`;
     }).filter(Boolean).join("\n\n");
   }
@@ -1047,11 +1496,11 @@ __THEME_CSS__
   }
   function askForDrivers(c, list, w) {
     if (!sampleFn || c.ask_claude === false || CFG.ask_claude === false) return;
-    const sig = [period, anchor, ...list.map((d) => `${d.b.id}:${d.key}:${Math.round(d.delta)}`)].join("|");
+    const sig = [period, anchor, ...list.map((d) => `${d.b.id}:${d.dim}:${Math.round(d.delta)}`)].join("|");
     if (aiOf(c.id).sig === sig) return;
     ai[c.id] = { sig, status: "loading", data: {}, code: null };
     const ids = list.map((d, i) => `${c.code || "TOP"}-${i + 1}`);
-    const lines = list.map((d, i) => { const m = METRICS[d.b.metric] || { format: d.b.format, label: d.b.title }; return `${ids[i]}: ${m.label} from ${d.key} (${d.b.dimension_label || d.b.dimension}) ${fmt(d.cmp, m.format)} → ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}); the total changed by ${fmtDelta(d.totalChange, m.format)}.`; }).join("\n");
+    const lines = list.map((d, i) => { const m = METRICS[d.b.metric] || { format: d.b.format, label: d.b.title }; return `${ids[i]}: ${m.label} from ${d.dim} (${d.b.dimension_label || d.b.dimension}) ${fmt(d.cmp, m.format)} → ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}); the total changed by ${fmtDelta(d.totalChange, m.format)}.`; }).join("\n");
     const prompt = [
       `You are the data partner of the business behind the OWOX project "${PROJECT.title}". ${CFG.lede || ""}`,
       `Period: ${winLabel(w.cur)}, compared with ${winLabel(w.cmp)}.`,
@@ -1072,7 +1521,7 @@ __THEME_CSS__
     const srcs = (d.b.sources || []).filter((x) => x.data_mart_id).map((x) => `${x.title} (${martUrl(x.data_mart_id)})${x.via ? ", " + x.via : ""}`).join("; ");
     return [
       `Using my OWOX Data Marts connector (project "${PROJECT.title}"), dig into this finding from the dashboard "${CFG.title}":`,
-      `${id}: ${m.label} from ${d.key} (${d.b.dimension_label || d.b.dimension}) went from ${fmt(d.cmp, m.format)} to ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}) in ${winLabel(w.cur)} against ${winLabel(w.cmp)}; data through ${fmtDay(anchor)}.`,
+      `${id}: ${m.label} from ${d.dim} (${d.b.dimension_label || d.b.dimension}) went from ${fmt(d.cmp, m.format)} to ${fmt(d.cur, m.format)} (${fmtPct(d.pct)}, ${fmtDelta(d.delta, m.format)}) in ${winLabel(w.cur)} against ${winLabel(w.cmp)}; data through ${fmtDay(anchor)}.`,
       `Data Marts behind it: ${srcs || "see the block's Source"}.`,
       "Re-query the same two periods. Split the change into volume, rate and value where the data allows. Go one dimension deeper (channel, category, country, segment or device, whichever the data model joins), and rank the drivers until at least 80% of the change is explained. Confirm or reject each hypothesis with numbers. Separate facts, estimates and hypotheses, and invent no metrics.",
     ].join("\n\n");
@@ -1114,19 +1563,20 @@ __THEME_CSS__
       const det = el("details", "ins " + (good ? "ins--ok" : "ins--bad"));
       const sum = el("summary");
       sum.append(el("span", "ins__id", id));
-      sum.append(el("p", "ins__title", `${(m.short || m.label)} from ${d.key}${dimLabel ? " (" + dimLabel.toLowerCase() + ")" : ""} ${verb} ${d.pct == null ? "from zero" : pctFmt(d.pct)}`));
+      sum.append(el("p", "ins__title", `${(m.short || m.label)} from ${d.dim}${dimLabel ? " (" + dimLabel.toLowerCase() + ")" : ""} ${verb} ${d.pct == null ? "from zero" : pctFmt(d.pct)}`));
       sum.append(el("span", "ins__impact " + (good ? "up-good" : "down-bad"), fmtDelta(d.delta, m.format)));
       sum.append(el("span", "mono", isNum(shareOfChange) ? `${pctFmt(shareOfChange)} of change` : ""));
       sum.append(digDeeper(c, d, m, w, id));
       det.append(sum);
       const body = el("div", "ins__body");
       const sec = (h, tag, content) => { const s0 = el("div"); const hh = el("h4"); hh.append(el("span", "tag", tag), document.createTextNode(h)); s0.append(hh); s0.append(content); return s0; };
-      body.append(sec("What happened", "Fact", el("p", null, `${m.label} from ${d.key} was ${fmt(d.cur, m.format)} in ${winLabel(w.cur)}, against ${fmt(d.cmp, m.format)} in ${winLabel(w.cmp)}.`)));
+      body.append(sec("What happened", "Fact", el("p", null, `${m.label} from ${d.dim} was ${fmt(d.cur, m.format)} in ${winLabel(w.cur)}, against ${fmt(d.cmp, m.format)} in ${winLabel(w.cmp)}.`)));
       // Why it matters: the move's share of the period's change, then where the metric stands against plan and the year.
       const why = [];
       const P = CFG.primary_metric && METRICS[CFG.primary_metric];
       const isPrimary = P && d.b.metric === CFG.primary_metric;
-      if (d.totalChange) why.push(`${d.key} ${Math.sign(d.delta) === Math.sign(d.totalChange) ? "is" : "offsets"} ${pctFmt(shareOfChange)} of the ${fmtDelta(d.totalChange, m.format)} change in ${m.label.toLowerCase()}${isPrimary ? ", the project's key metric" : ""}.`);
+      const primaryNote = isPrimary ? ", the project's key metric" : "";
+      if (d.totalChange) why.push(`${d.dim} ${Math.sign(d.delta) === Math.sign(d.totalChange) ? "is" : "offsets"} ${pctFmt(shareOfChange)} of the ${fmtDelta(d.totalChange, m.format)} change in ${m.label.toLowerCase()}${primaryNote}.`);
       // In the key metric's unit only where the config gives an unambiguous formula (change × named metrics).
       if (P && !isPrimary && m.to_primary && m.to_primary.multiply) {
         const facts = m.to_primary.multiply.map((x) => { const e = evaluate(x); return e && isNum(e.fact) ? { v: e.fact, label: e.m.label } : null; });
@@ -1139,7 +1589,7 @@ __THEME_CSS__
         const y = D.year(anchor), yearPlan = planFor(m, [`${y}-01-01`, `${y}-12-31`]), fy = forecastYear(m);
         if (isNum(yearPlan) && isNum(fy)) why.push(`Full-year forecast ${fmt(fy, m.format, true)} against the ${y} plan of ${fmt(yearPlan, m.format, true)}: ${fmtDelta(fy - yearPlan, m.format)}.`);
       }
-      body.append(sec("Why it matters", "Estimate", el("p", null, why.join(" ") || `${d.key} moved by ${fmtDelta(d.delta, m.format)}.`)));
+      body.append(sec("Why it matters", "Estimate", el("p", null, why.join(" ") || `${d.dim} moved by ${fmtDelta(d.delta, m.format)}.`)));
       const pb = (c.playbook && c.playbook[d.b.id] && c.playbook[d.b.id][d.delta > 0 ? "up" : "down"]) || null;
       const A = aiOf(c.id);
       const rec = A.status === "done" && A.data[id] ? A.data[id] : pb;
@@ -1163,14 +1613,14 @@ __THEME_CSS__
     const data = breakdownData(src); const m = METRICS[src.metric] || { format: src.format };
     if (!data) { host.append(stateBox(keys)); return; }
     const up = (m.direction || "up") !== "down";
-    const cols = [["key", src.dimension_label || "Value"], ["cur", "This period"], ["cmp", "Comparison"], ["delta", "Change"], ["pct", "Change %"], ["share", "Share"]];
+    const cols = [["dim", src.dimension_label || "Value"], ["cur", "This period"], ["cmp", "Comparison"], ["delta", "Change"], ["pct", "Change %"], ["share", "Share"]];
     const st = sortState[c.id] || { by: "cur", dir: -1 };
     const rows = [...data.rows].sort((a, b) => { const x = a[st.by], y = b[st.by]; if (typeof x === "string") return st.dir * String(x).localeCompare(String(y)); return st.dir * ((x ?? -Infinity) - (y ?? -Infinity)); });
     const wrap = el("div", "table-wrap"), t = el("table"), thead = el("thead"), tr = el("tr");
     cols.forEach(([k, label]) => { const th = el("th", null, label + (st.by === k ? (st.dir < 0 ? " ↓" : " ↑") : "")); th.addEventListener("click", () => { sortState[c.id] = { by: k, dir: st.by === k ? -st.dir : -1 }; renderAll(); }); tr.append(th); });
     thead.append(tr); t.append(thead);
     const tb = el("tbody");
-    rows.forEach((r) => { const row = el("tr"); row.append(el("td", null, r.key)); row.append(el("td", "num", fmt(r.cur, m.format))); row.append(el("td", "num", fmt(r.cmp, m.format))); const good = r.delta === 0 ? null : (r.delta > 0) === up; row.append(el("td", "num " + (good == null ? "" : good ? "up-good" : "down-bad"), arrow(r.delta) + fmtDelta(r.delta, m.format))); row.append(el("td", "num", fmtPct(r.pct))); row.append(el("td", "num", r.share == null ? "—" : nf({ style: "percent", maximumFractionDigits: 1 }).format(r.share))); tb.append(row); });
+    rows.forEach((r) => { const row = el("tr"); row.append(el("td", null, r.dim)); row.append(el("td", "num", fmt(r.cur, m.format))); row.append(el("td", "num", fmt(r.cmp, m.format))); const good = r.delta === 0 ? null : (r.delta > 0) === up; row.append(el("td", "num " + (good == null ? "" : good ? "up-good" : "down-bad"), arrow(r.delta) + fmtDelta(r.delta, m.format))); row.append(el("td", "num", fmtPct(r.pct))); row.append(el("td", "num", r.share == null ? "—" : nf({ style: "percent", maximumFractionDigits: 1 }).format(r.share))); tb.append(row); });
     const tot = el("tr"); tot.append(el("td", null, "Total")); tot.append(el("td", "num", fmt(data.totCur, m.format))); tot.append(el("td", "num", fmt(data.totCmp, m.format))); tot.append(el("td", "num", data.snap ? "—" : fmtDelta(data.totCur - data.totCmp, m.format))); tot.append(el("td", "num", data.snap ? "—" : fmtPct(data.totCmp ? (data.totCur - data.totCmp) / Math.abs(data.totCmp) : null))); tot.append(el("td", "num", "100%")); tb.append(tot);
     t.append(tb); wrap.append(t); host.append(wrap);
   }
@@ -1213,7 +1663,24 @@ __THEME_CSS__
   }
 
   // ---------- summary (templated from the same numbers) ----------
+  // The forecast in one sentence: on the chart when the page has one, else at the top.
+  const FC_CHART = PAGES.some((p) => (p.components || []).some((c) => c.type === "forecast_chart"));
+  // The forecast in one line: horizon, revenue, new customers at their CAC, profit, and the cash low if any.
+  function fcSentence(run) {
+    const t = run.res.totals, p = el("p"), b = (v) => el("b", null, v), txt = (v) => document.createTextNode(v);
+    const when = FCFG.horizon === "through_next_december" ? `Through December ${run.st.model.horizonKeys[run.st.model.H - 1].slice(0, 4)}` : `Next ${run.st.model.H} months`;
+    p.append(txt(`${when}, Estimate: `), b(fmt(t.revenue, "currency", true)), txt(" revenue"));
+    if (FCFG.baselines.spend) p.append(txt(" · "), b(fmt(t.newCustomers, "number", true)), txt(" new customers at "), b(fmt(t.cac, "currency")));
+    p.append(txt(" · "), b(fmt(t.operatingProfit, "currency", true)), txt(t.contributionOnly ? " contribution" : " operating profit"));
+    if (t.peakCash > 0) p.append(txt(" · cash low "), b("−" + fmt(t.peakCash, "currency", true)), txt(` in ${fmtMonthKey(run.st.model.horizonKeys[t.peakIndex])}`));
+    return p;
+  }
   function renderSummary() {
+    if (FCFG) {
+      const box = $("summary"); const run = fcRun();
+      if (FC_CHART || !run.res || run.res.error) { box.hidden = true; return; }
+      box.replaceChildren(fcSentence(run)); box.hidden = false; return;
+    }
     const box = $("summary"); const ids = CFG.summary_metrics || [];
     if (!ids.length || !anchor) { box.hidden = true; return; }
     const p = el("p");
@@ -1244,7 +1711,7 @@ __THEME_CSS__
     PAGES.forEach((p) => {
       const marts = new Map();
       const add = (list) => (list || []).forEach((x) => x.data_mart_id && marts.set(x.data_mart_id, x.title || x.data_mart_id));
-      (p.components || []).forEach((k) => { add(k.sources); if (k.metric && METRICS[k.metric]) add(METRICS[k.metric].sources); (k.metrics || []).forEach((mid) => METRICS[mid] && add(METRICS[mid].sources)); if (k.from) [].concat(k.from).forEach((b) => COMPONENTS[b] && add(COMPONENTS[b].sources)); });
+      (p.components || []).forEach((k) => { add(k.sources || (FC_TYPES.has(k.type) ? fcSources() : null)); if (k.metric && METRICS[k.metric]) add(METRICS[k.metric].sources); (k.metrics || []).forEach((mid) => METRICS[mid] && add(METRICS[mid].sources)); if (k.from) [].concat(k.from).forEach((b) => COMPONENTS[b] && add(COMPONENTS[b].sources)); });
       if (!marts.size) return;
       const tr = el("tr"); tr.append(el("td", null, p.title)); const td = el("td");
       [...marts].forEach(([id, title], i) => { if (i) td.append(document.createTextNode(" · ")); const a = el("a", null, title); a.href = martUrl(id); a.target = "_blank"; a.rel = "noopener"; td.append(a); });
@@ -1274,9 +1741,375 @@ __THEME_CSS__
     return art;
   }
 
+  // ---------- forecast blocks ----------
+  const FC_FORMAT = { revenue: "currency", spend: "currency", cac: "currency", aov: "currency", fixed_costs: "currency", budget: "currency", first_month_revenue: "currency", new_customers: "number", customer_base: "number", margin: "percent", repeat: "currency", existing: "currency" };
+  const fcFmt = (key, v, compact) => {
+    const b = FCFG && FCFG.baselines[key];
+    if (b && b.op === "cohort_curve") return fmt(v, "currency", compact);
+    if (b && b.op === "seasonality") return Array.isArray(v) ? `×${nf({ maximumFractionDigits: 2 }).format(Math.min(...v))}–×${nf({ maximumFractionDigits: 2 }).format(Math.max(...v))}` : "flat";
+    if (b && b.op === "input" && v == null) return "left out";
+    return fmt(v, (b && b.format) || FC_FORMAT[key] || "number", compact);
+  };
+  // A baseline's inputs: another baseline's value in that baseline's format, or revenue per customer.
+  const fcInputs = (bl, max) => { const xs = bl.inputs || []; const shown = max && xs.length > max + 1 ? [...xs.slice(0, max), xs[xs.length - 1]] : xs; return shown.map((x) => `${x.label} ${x.key ? fcFmt(x.key, x.value) : fmt(x.value, "currency")}`).join(" · "); };
+  const fmtMonthKey = (k) => `${fmtMonth(k + "-01")} ${k.slice(0, 4)}`;
+  // The "!" next to every Assumption: how the page computed it, from which OWOX values, and the calculated
+  // field that would make it a Fact.
+  // A popover near the right edge opens to the left, so it is never cut off.
+  const placePop = (h, pop) => { const f = () => pop.classList.toggle("pop--right", h.getBoundingClientRect().left > window.innerWidth / 2); h.addEventListener("mouseenter", f); h.addEventListener("focusin", f); };
+  const martTitle = (id) => { const q = Object.values(QUERIES).find((x) => x.data_mart_id === id); return q ? String(q.label || id).split(" · ").pop() : "the Data Mart"; };
+  function assume(bl) {
+    const h = el("span", "help");
+    const btn = el("button", "help__btn help__btn--assume", "!"); btn.type = "button"; btn.setAttribute("aria-label", `${bl.label}: an assumption. How it is computed`);
+    const pop = el("span", "help__pop pop--assume"); pop.setAttribute("role", "tooltip");
+    const head = el("span", "pop__head"); head.append(el("span", "tag tag--assume", "Assumption"), document.createTextNode(bl.label)); pop.append(head);
+    pop.append(el("span", null, "Computed in this page from OWOX values by a fixed rule, not read from a Data Mart."));
+    const dl = el("dl", "pop__dl");
+    const row = (k, v, cls) => { if (!v) return; dl.append(el("dt", null, k), el("dd", cls || null, v)); };
+    row("Rule", bl.rule || bl.formula);
+    row("Inputs", fcInputs(bl, 3), "num");
+    if (bl.window) row("Window", `${fmtMonthKey(bl.window[0])} – ${fmtMonthKey(bl.window[1])}`, "num");
+    pop.append(dl);
+    if (bl.suggest) {
+      const fix = el("p", "pop__fix");
+      fix.append(document.createTextNode("Make it a Fact: add "), el("code", null, bl.suggest.name), document.createTextNode(` to ${martTitle(bl.suggest.data_mart_id)} as a calculated field (${bl.suggest.formula}). `));
+      if (bl.suggest.data_mart_id) { const a = el("a", null, "Open in OWOX ↗"); a.href = martUrl(bl.suggest.data_mart_id); a.target = "_blank"; a.rel = "noopener"; fix.append(a); }
+      pop.append(fix);
+    }
+    h.append(btn, pop); placePop(h, pop); return h;
+  }
+  const kindMark = (bl) => bl && bl.kind === "Assumption" ? assume(bl) : null;
+  // Lever positions: per viewer, in this browser only; the page works without storage.
+  const LEVER_KEY = `owox-forecast:${PROJECT.id}:${CFG.title}:levers`;
+  let leverSaved = (() => { try { const v = JSON.parse(localStorage.getItem(LEVER_KEY) || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (_) { return {}; } })();
+  const saveLevers = () => { try { localStorage.setItem(LEVER_KEY, JSON.stringify(leverSaved)); } catch (_) { /* blocked: positions last until reload */ } };
+  function leverKeys(st) {
+    const b = st.model.b, have = (k) => !!(FCFG.baselines || {})[k];
+    return (FCFG.levers || []).filter((k) => {
+      if ((k === "budget" || k === "cac") && !have("spend")) return false;
+      if (k === "fixed_costs") return !!FC.leverRange(k, FC.leverBase(k, b), b);
+      return FC.leverBase(k, b) != null;
+    });
+  }
+  function fcRun() {
+    const st = fcState(); if (!st || st.missing) return { st };
+    const lv = FC.restoreLevers(leverSaved, st.model.b, leverKeys(st));
+    return { st, lv, res: FC.forecastModel(st.model.b, FC.toModelLevers(lv, st.model.b), st.model.H) };
+  }
+  const horizonLabel = (st) => (FCFG.horizon === "through_next_december" ? `through December ${st.model.horizonKeys[st.model.H - 1].slice(0, 4)}` : `the next ${st.model.H} months`);
+  function fcProblem(host, run) {
+    if (!run.st || run.st.missing) { host.append(stateBox(fcQueryIds())); return true; }
+    if (run.res.error) {
+      const why = { cac: "No blended CAC: the window has no new customers or no spend, so the page cannot forecast new customers.", curve: "No revenue per new customer: the acquisition date cannot be used and the config has no average order value, so the page cannot price a new customer. Add an average order value baseline, or a valid first-order date.", margin: "No gross margin: answer the margin question, or add a margin field to the Data Mart." }[run.res.error];
+      host.append(el("p", "state state--warn", why)); return true;
+    }
+    return false;
+  }
+  function rerenderForecast(skip) {
+    const p = PAGES[activePage]; if (!p) return;
+    (p.components || []).forEach((c) => { if (!FC_TYPES.has(c.type) || c.id === skip) return; const old = $(`c-${c.id}`); if (old) { try { old.replaceWith(renderComponent(c)); } catch (_) {} } });
+    renderSummary();
+  }
+  function leverMeta(k, st) {
+    const bl = st.baselines;
+    const curveKey = Object.keys(FCFG.baselines).find((x) => FCFG.baselines[x].op === "cohort_curve");
+    return {
+      budget: { name: "Ad budget", full: `Ad budget for ${horizonLabel(st)}; now: the last 12 months' spend`, src: bl.spend },
+      cac: { name: "Blended CAC", full: "Blended CAC; now: the last 12 months", src: bl.cac },
+      first_month_revenue: { name: "First-month revenue", full: "First-month revenue per new customer", src: curveKey ? bl[curveKey] : bl.aov },
+      repeat: { name: "Repeat, mo 2–12", full: "Repeat revenue per new customer over months 2–12 after the first order", src: curveKey ? bl[curveKey] : null },
+      existing: { name: "Existing / month", full: "Monthly revenue from customers you already have (average over the horizon)", src: { kind: "Assumption", label: "Revenue from existing customers", rule: st.mode === "cohort_curve" ? "Customers won inside the loaded range follow the revenue curve at their age; older customers keep their own year-on-year trend" : "The window's repeat revenue, by revenue seasonality", inputs: [], window: st.model.window ? [st.model.window.from, st.model.window.to] : null } },
+      margin: { name: "Gross margin", full: "Gross margin", src: bl.margin },
+      fixed_costs: { name: "Fixed costs / month", full: "Fixed costs per month", src: bl.fixed_costs },
+    }[k];
+  }
+  // ---------- scenarios (shared, in the page's database) and the forecast download ----------
+  // One document per person, scenarios/<their id>: { items: [{ name, levers, at }] }. Everyone who can open
+  // the page reads them; each person writes only their own document.
+  let scenarios = [], scenarioNames = {}, scenarioSel = "", saveOpen = false, saveName = "", scenarioMsg = "", downloadsApi = null;
+  function subscribeScenarios() {
+    db.collection("scenarios").onSnapshot(async (snap) => {
+      scenarios = snap.docs.map((x) => ({ uid: x.id, items: (((x.data() || {}).items) || []).filter((i) => i && typeof i.name === "string" && i.levers && typeof i.levers === "object").slice(0, 20) }));
+      try { if (userApi) scenarioNames = await userApi.profiles(scenarios.map((x) => x.uid)); } catch (_) {}
+      renderAll();
+    }, () => {});
+  }
+  const scenarioOf = (v) => { const [uid, i] = String(v).split("|"); const owner = scenarios.find((x) => x.uid === uid); return owner && owner.items[+i] ? { uid, i: +i, item: owner.items[+i] } : null; };
+  // Write my scenarios, then show them at once: the shared snapshot arrives a moment later.
+  async function writeMine(items) {
+    await db.doc(`scenarios/${me}`).set({ items, at: Date.now() });
+    const mine = scenarios.find((x) => x.uid === me);
+    if (mine) mine.items = items; else scenarios.push({ uid: me, items });
+  }
+  function refreshScenarioHead(c) {
+    const art = $(`c-${c.id}`); const old = art && art.querySelector(".block__head .scn"); const st = fcState();
+    if (!old || !st || st.missing) return;
+    setTimeout(() => { const now = art.querySelector(".block__head .scn"); if (now) now.replaceWith(scenarioControls(st)); }, 0);
+  }
+  // Icons in the levers head: quiet like the Sheets export, in the text colour.
+  const ICON = {
+    save: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3"/><path d="M8 21v-7h8v7"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>',
+    download: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>',
+  };
+  function iconBtn(kind, label, onClick, cls) {
+    const box = el("span", "xport" + (cls ? " " + cls : ""));
+    const b = el("button", "xport__btn icon-btn"); b.type = "button"; b.setAttribute("aria-label", label); b.innerHTML = ICON[kind];
+    b.addEventListener("click", onClick);
+    box.append(b, el("span", "xport__tip", label)); return box;
+  }
+  const SCN_KEY = LEVER_KEY + ":scenario";
+  try { scenarioSel = localStorage.getItem(SCN_KEY) || ""; } catch (_) { scenarioSel = ""; }
+  const setScenario = (v) => { scenarioSel = v; try { localStorage.setItem(SCN_KEY, v); } catch (_) {} };
+  // The levers a scenario sets (Default: today's values), clamped to today's ranges.
+  function scenarioLevers(st, v) { const s0 = scenarioOf(v); return FC.restoreLevers(s0 ? s0.item.levers : null, st.model.b, leverKeys(st)); }
+  function isDirty(st, lv) {
+    const ref = scenarioLevers(st, scenarioSel);
+    return Object.keys(ref).some((k) => { const a = ref[k], b = lv[k]; return isNum(a) && isNum(b) && Math.abs(a - b) > Math.max(1e-9, Math.abs(a) * 1e-4); });
+  }
+  let confirmDelete = false;
+  function scenarioControls(st) {
+    const wrap = el("span", "scn");
+    const sel = el("select", "select select--sm"); sel.id = "scenario"; sel.setAttribute("aria-label", "Scenario");
+    const def = el("option", null, "Default"); def.value = ""; sel.append(def);
+    scenarios.forEach((o) => {
+      if (!o.items.length) return;
+      const g = el("optgroup"); g.label = o.uid === me ? "Yours" : ((scenarioNames[o.uid] && scenarioNames[o.uid].name) || "Someone");
+      o.items.forEach((it, i) => { const op = el("option", null, it.name); op.value = `${o.uid}|${i}`; g.append(op); });
+      sel.append(g);
+    });
+    if (!scenarioOf(scenarioSel)) setScenario("");
+    sel.value = scenarioSel;
+    const lv = fcRun().lv || {};
+    const dirty = isDirty(st, lv);
+    const cur = sel.options[sel.selectedIndex]; if (cur && dirty) cur.textContent += " (edited)";
+    sel.addEventListener("change", () => { setScenario(sel.value); confirmDelete = false; saveOpen = false; const s0 = scenarioOf(sel.value); leverSaved = s0 ? Object.assign({}, s0.item.levers) : {}; saveLevers(); renderAll(); });
+    wrap.append(sel);
+    if (db && me && dirty) wrap.append(iconBtn("save", "Save these levers as a scenario", () => { saveOpen = !saveOpen; scenarioMsg = ""; renderAll(); setTimeout(() => { const i = $("scenario-name"); if (i) i.focus(); }, 0); }, "xport--on"));
+    const mineSel = scenarioOf(scenarioSel);
+    if (mineSel && mineSel.uid === me) {
+      if (!confirmDelete) wrap.append(iconBtn("trash", `Delete “${mineSel.item.name}”`, () => { confirmDelete = true; renderAll(); }, "xport--on"));
+      else {
+        const ask = el("span", "scn-ask", `Delete “${mineSel.item.name}”?`);
+        const yes = el("button", "btn btn--ghost btn--sm", "Delete"); yes.type = "button";
+        yes.addEventListener("click", async () => { const mine = (scenarios.find((x) => x.uid === me) || { items: [] }).items.filter((_, j) => j !== mineSel.i); try { await writeMine(mine); setScenario(""); leverSaved = {}; saveLevers(); scenarioMsg = ""; } catch (_) { scenarioMsg = "Not deleted: the page could not write to its shared storage."; } confirmDelete = false; renderAll(); });
+        const no = el("button", "btn btn--ghost btn--sm", "Keep"); no.type = "button"; no.addEventListener("click", () => { confirmDelete = false; renderAll(); });
+        wrap.append(ask, yes, no);
+      }
+    }
+    if (downloadsApi) wrap.append(iconBtn("download", "Download the forecast (CSV): levers, months, baselines", () => downloadForecast()));
+    return wrap;
+  }
+  // Saving asks whether to create a new scenario or update one of yours.
+  function saveForm(host) {
+    const mine = (scenarios.find((x) => x.uid === me) || { items: [] }).items;
+    const cur = scenarioOf(scenarioSel); const curMine = cur && cur.uid === me ? cur.i : null;
+    const f = el("form", "scn-form");
+    const mode = (v, text) => { const l = el("label", "scn-opt"); const r = el("input"); r.type = "radio"; r.name = "scn-mode"; r.value = v; r.id = `scn-mode-${v}`; l.append(r, document.createTextNode(text)); return { l, r }; };
+    const nw = mode("new", "New"); const inp = el("input"); inp.id = "scenario-name"; inp.type = "text"; inp.maxLength = 60; inp.placeholder = "Name, e.g. Budget +30%"; inp.setAttribute("aria-label", "New scenario name"); inp.value = saveName;
+    inp.addEventListener("input", () => { saveName = inp.value; nw.r.checked = true; });
+    f.append(nw.l, inp);
+    let up = null, upSel = null;
+    if (mine.length) {
+      up = mode("update", "Update"); upSel = el("select", "select select--sm"); upSel.id = "scenario-update"; upSel.setAttribute("aria-label", "Scenario to update");
+      mine.forEach((it, i) => { const op = el("option", null, it.name); op.value = String(i); upSel.append(op); });
+      if (curMine != null) upSel.value = String(curMine);
+      upSel.addEventListener("change", () => { up.r.checked = true; });
+      f.append(up.l, upSel);
+    }
+    (curMine != null && up ? up : nw).r.checked = true;
+    const ok = el("button", "btn btn--ghost btn--sm", "Save"); ok.type = "submit";
+    const no = el("button", "btn btn--ghost btn--sm", "Cancel"); no.type = "button"; no.addEventListener("click", () => { saveOpen = false; renderAll(); });
+    f.append(ok, no);
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const run = fcRun(); if (!run.lv) return;
+      const levers = Object.assign({}, run.lv);
+      let next, at;
+      if (up && up.r.checked) { at = +upSel.value; next = mine.map((it, i) => (i === at ? { name: it.name, levers, at: Date.now() } : it)); }
+      else {
+        const name = inp.value.trim(); if (!name) { inp.focus(); return; }
+        next = [...mine.filter((i) => i.name !== name), { name, levers, at: Date.now() }].slice(-20); at = next.length - 1;
+      }
+      try { await writeMine(next); saveOpen = false; saveName = ""; scenarioMsg = ""; setScenario(`${me}|${at}`); leverSaved = levers; saveLevers(); }
+      catch (_) { scenarioMsg = "Not saved: your access to this page lets you view scenarios, not save them. Ask its owner for the Contributor role."; }
+      renderAll();
+    });
+    host.append(f);
+  }
+  async function downloadForecast() {
+    const run = fcRun(); if (!run.res || run.res.error) return;
+    const { st, lv, res } = run;
+    const cur = scenarioOf(scenarioSel);
+    const csv = FC.forecastCsv({
+      title: CFG.title || "Forecast", project: PROJECT.title || "", generatedAt: new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC",
+      scenario: cur ? cur.item.name : "",
+      levers: leverKeys(st).map((k) => { const meta = leverMeta(k, st); return { label: meta.name, now: FC.leverBase(k, st.model.b), target: lv[k], kind: meta.src ? meta.src.kind : "Assumption" }; }),
+      months: st.model.horizonKeys, rows: res.rows, baselines: Object.values(st.baselines),
+    });
+    const slug = String(CFG.title || "forecast").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    try { await downloadsApi.save({ filename: `${slug}-${D.today()}.csv`, data: csv }); scenarioMsg = ""; }
+    catch (e) { scenarioMsg = e && e.code === "declined" ? "" : `Not downloaded: ${(e && e.message) || "the browser refused the file"}.`; }
+    renderAll();
+  }
+  function leversBlock(host, c) {
+    const run = fcRun(); if (fcProblem(host, run)) return;
+    const { st, lv } = run; const b = st.model.b;
+    if (scenarioMsg) host.append(el("p", "scn-msg", scenarioMsg));
+    if (saveOpen) saveForm(host);
+    const box = el("div", "levers");
+    leverKeys(st).forEach((k) => {
+      const base = FC.leverBase(k, b), r = FC.leverRange(k, base, b); if (!r) return;
+      const meta = leverMeta(k, st);
+      const row = el("div", "lever");
+      const kind = meta.src ? meta.src.kind : "Assumption";
+      const name = el("p", "lever__name"); const lab = el("span", "lever__label", meta.name); lab.title = `${meta.full} (${kind})`; name.append(lab);
+      const mk = kindMark(meta.src); if (mk) name.append(mk); row.append(name);
+      const track = el("div", "lever__track");
+      const input = el("input"); input.type = "range"; input.min = r[0]; input.max = r[1]; input.step = (r[1] - r[0]) / 200; input.value = lv[k];
+      input.id = `lever-${k}`; input.setAttribute("aria-label", meta.name);
+      const mark = el("span", "lever__mark"); mark.title = `Now: ${fcFmt(k, base)}`; mark.style.left = `calc(${(base - r[0]) / (r[1] - r[0])} * (100% - 16px) + 8px)`;
+      track.append(input, mark); row.append(track);
+      const vals = el("p", "lever__vals"); const now = el("span"); now.title = kind; now.append(el("em", null, kind === "Your input" ? "input " : "now "), document.createTextNode(fcFmt(k, base, true)));
+      const tgt = el("span", "tgt"); tgt.title = "Target: where the lever ends in the last month"; const tv = el("b", null, fcFmt(k, lv[k], true)); tgt.append(tv); vals.append(now, tgt); row.append(vals);
+      input.addEventListener("input", () => { leverSaved[k] = +input.value; refreshScenarioHead(c); tv.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
+      box.append(row);
+    });
+    host.append(box);
+  }
+  // A compact stat: name, the horizon Estimate, and one line against the last 12 months.
+  function fcCard(title, value, sub, mark) {
+    const card = el("article", "fstat");
+    const name = el("p", "fstat__name", title); if (mark) name.append(mark); card.append(name);
+    card.append(el("p", "fstat__value", value));
+    if (sub) card.append(sub);
+    return card;
+  }
+  // "last 12 mo $3.3M +24%": the change is coloured by whether it is good for the business.
+  function fcVs(key, now, upGood) {
+    const bl = fcState().baselines[key]; if (!bl || !isNum(bl.value)) return null;
+    const p = el("p", "fstat__sub"); p.append(el("em", null, "last 12 mo "), document.createTextNode(fcFcmt(key, bl.value)));
+    if (isNum(now) && bl.value) { const ch = (now - bl.value) / Math.abs(bl.value); if (Math.abs(ch) >= 0.005) p.append(document.createTextNode(" "), el("span", (ch > 0) === upGood ? "up-good" : "down-bad", fmtPct(ch))); }
+    const mk = kindMark(bl); if (mk) p.append(document.createTextNode(" "), mk);
+    return p;
+  }
+  const fcFcmt = (key, v) => fcFmt(key, v, true);
+  const fcNote = (t) => el("p", "fstat__sub", t);
+  function cardsBlock(host) {
+    const run = fcRun(); if (fcProblem(host, run)) return;
+    const { st, res } = run; const t = res.totals, bl = st.baselines;
+    const wrap = el("div", "fstats");
+    wrap.append(fcCard("Revenue", fmt(t.revenue, "currency", true), fcVs("revenue", t.revenue, true)));
+    if (bl.spend) {
+      wrap.append(fcCard("Ad spend", fmt(t.budget, "currency", true), fcVs("spend", t.budget, false)));
+      wrap.append(fcCard("New customers", fmt(t.newCustomers, "number", true), fcVs("new_customers", t.newCustomers, true)));
+      wrap.append(fcCard("Blended CAC", fmt(t.cac, "currency"), fcVs("cac", t.cac, false)));
+    }
+    wrap.append(fcCard(t.contributionOnly ? "Contribution" : "Operating profit", fmt(t.operatingProfit, "currency", true), fcNote(t.contributionOnly ? "before fixed costs" : "after ad spend and fixed costs")));
+    wrap.append(fcCard("Peak cash need", fmt(t.peakCash, "currency", true), fcNote(t.peakCash > 0 ? `lowest in ${fmtMonthKey(st.model.horizonKeys[t.peakIndex])}` : "cash stays above zero")));
+    host.append(wrap);
+  }
+  const fcMode = {};
+  function forecastChartBlock(host, c) {
+    const run = fcRun(); if (fcProblem(host, run)) return;
+    const { st, res } = run; const m = st.model;
+    const mode = fcMode[c.id] || "profit";
+    const sw = el("div", "switch"); [["profit", res.totals.contributionOnly ? "Contribution" : "Operating profit"], ["cash", "Cumulative cash"]].forEach(([k, t]) => { const bt = el("button", null, t); bt.type = "button"; bt.setAttribute("aria-pressed", String(mode === k)); bt.addEventListener("click", () => { fcMode[c.id] = k; rerenderForecast(); }); sw.append(bt); });
+    const lg = el("div", "legend"); const add = (cls, t) => { const s0 = el("span"); s0.append(el("i", cls), document.createTextNode(t)); lg.append(s0); };
+    add("", "Revenue, Fact"); add("hatch", `${fmtMonth(m.anchorMonth + "-01")} 1–${+anchor.slice(8, 10)}, Fact`); add("base", "Existing customers, Estimate"); add("new", "New customers, Estimate");
+    if (FCFG.baselines.spend) add("spend", "Ad spend, below the axis"); add("profit", mode === "cash" ? "Cumulative cash" : (res.totals.contributionOnly ? "Contribution" : "Operating profit"));
+    const top = el("div", "fchart__top"); top.append(sw, lg); host.append(top);
+    const hist = Object.keys(m.history).sort().slice(-13);
+    const keys = [...hist, ...m.horizonKeys];
+    const nH = hist.length;
+    const bar = keys.map((k, i) => i < nH ? { fact: m.history[k].revenue } : { base: res.rows[i - nH].baseRev, nw: res.rows[i - nH].newRev });
+    const budget = keys.map((k, i) => i < nH ? m.history[k].spend : res.rows[i - nH].budget);
+    const line = keys.map((k, i) => i < nH ? null : (mode === "cash" ? res.rows[i - nH].cumCash : res.rows[i - nH].operatingProfit));
+    const tops = bar.map((x) => (x.fact != null ? x.fact : (x.base || 0) + (x.nw || 0)));
+    // Ad spend is a cost: drawn below the axis, so the chart reads revenue in, spend out.
+    const spendNeg = FCFG.baselines.spend ? budget.map((v) => (isNum(v) ? -v : null)) : [];
+    const all = [...tops, ...spendNeg, ...line].filter(isNum);
+    const lo = Math.min(0, ...all), hi = Math.max(0, ...all);
+    // Ticks on round steps that pass through zero.
+    const step = niceMax((hi - lo) / 4 || 1), yMax = Math.ceil(hi * 1.02 / step) * step || step, yMin = Math.floor(lo * 1.02 / step) * step;
+    const W = window.innerWidth < 680 ? 520 : chartWidth(c), Hh = window.innerWidth < 680 ? 330 : 230, L = 64, R = 10, T = 12, B = 28;
+    const band = (W - L - R) / keys.length, xc = (i) => L + band * (i + 0.5), yv = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (Hh - T - B);
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${Hh}`, role: "img", "aria-label": `${c.title || "Revenue by month"}: the last ${nH} months and ${horizonLabel(st)}` });
+    const defs = svgEl("defs", {}); const pat = svgEl("pattern", { id: `fc-hatch-${c.id}`, width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+    pat.append(svgEl("rect", { width: 5, height: 5, fill: "var(--bg-surface)" }), svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 5, stroke: "var(--metric)", "stroke-width": 2.5 })); defs.append(pat); svg.append(defs);
+    for (let v = yMin; v <= yMax + step / 2; v += step) { svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(v), y2: yv(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: yv(v) + 4, "text-anchor": "end" }); t.textContent = fmt(Math.abs(v) < step / 1e6 ? 0 : v, "currency", true); svg.append(t); }
+    if (yMin < 0) svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(0), y2: yv(0), stroke: "var(--border-strong)" }));
+    svg.append(svgEl("line", { x1: L + band * nH, x2: L + band * nH, y1: T, y2: Hh - B, stroke: "var(--border-strong)", "stroke-dasharray": "2 3" }));
+    keys.forEach((k, i) => { if (i % 2 && keys.length > 16) return; const t = svgEl("text", { x: xc(i), y: Hh - 9, "text-anchor": "middle" }); t.textContent = fmtMonth(k + "-01"); svg.append(t); });
+    const bw = Math.min(26, band * 0.66);
+    bar.forEach((x, i) => {
+      const k = keys[i];
+      if (x.fact != null) { const partial = k === m.anchorMonth; svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(x.fact), width: bw, height: Math.max(0, yv(0) - yv(x.fact)), fill: partial ? `url(#fc-hatch-${c.id})` : "var(--metric)", stroke: partial ? "var(--metric)" : "none" })); return; }
+      const b0 = x.base || 0, n0 = x.nw || 0;
+      svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(b0), width: bw, height: Math.max(0, yv(0) - yv(b0)), fill: "color-mix(in srgb, var(--metric) 45%, transparent)" }));
+      svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(b0 + n0), width: bw, height: Math.max(0, yv(b0) - yv(b0 + n0)), fill: "var(--metric-2)" }));
+    });
+    spendNeg.forEach((v, i) => { if (!isNum(v)) return; const fact = i < nH; svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(0), width: bw, height: Math.max(0, yv(v) - yv(0)), fill: fact ? "color-mix(in srgb, var(--warn) 80%, transparent)" : "color-mix(in srgb, var(--warn) 55%, transparent)" })); });
+    const path = (arr, attrs) => svg.append(svgEl("path", Object.assign({ d: arr.map((v, i) => !isNum(v) ? "" : `${i && isNum(arr[i - 1]) ? "L" : "M"}${xc(i).toFixed(1)},${yv(v).toFixed(1)}`).join(""), fill: "none" }, attrs)));
+    path(line, { stroke: "var(--ok)", "stroke-width": 2 });
+    const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: Hh - T - B, fill: "transparent" }); svg.append(hit); host.append(svg);
+    const tip = tooltip(host);
+    hit.addEventListener("pointermove", (e) => {
+      const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(keys.length - 1, Math.floor((px - L) / band)));
+      const k = keys[i], x = bar[i]; const ln = [fmtMonthKey(k)];
+      if (x.fact != null) ln.push(`Revenue ${fmt(x.fact, "currency")} · Fact${k === m.anchorMonth ? " (to " + fmtDay(anchor, { year: undefined }) + ")" : ""}`);
+      else { ln.push(`Existing customers ${fmt(x.base, "currency")} · Estimate`, `New customers ${fmt(x.nw, "currency")} · Estimate`); const row = res.rows[i - nH]; ln.push(`${fmt(row.newCustomers, "number")} new at ${fmt(row.cac, "currency")} · Estimate`); }
+      if (FCFG.baselines.spend && isNum(budget[i])) ln.push(`Ad spend ${fmt(budget[i], "currency")}${x.fact != null ? " · Fact" : " · Estimate"}`);
+      if (isNum(line[i])) ln.push(`${mode === "cash" ? "Cumulative cash" : (res.totals.contributionOnly ? "Contribution" : "Operating profit")} ${fmt(line[i], "currency")}`);
+      tip.show(e, ln);
+    });
+    hit.addEventListener("pointerleave", () => tip.hide());
+    const lede = fcSentence(run); lede.className = "fc-lede"; host.append(lede);
+  }
+  function assumptionsBlock(host) {
+    const st = fcState(); if (!st || st.missing) { host.append(stateBox(fcQueryIds())); return; }
+    const wrap = el("div", "table-wrap"), t = el("table"), thead = el("thead"), tr = el("tr");
+    ["Baseline", "Value", "Kind", "How it is read", "Calculated field to add"].forEach((x) => { const th = el("th", null, x); th.style.cursor = "default"; tr.append(th); });
+    thead.append(tr); t.append(thead);
+    const tb = el("tbody");
+    Object.values(st.baselines).forEach((bl) => {
+      const row = el("tr");
+      row.append(el("td", null, bl.label));
+      row.append(el("td", "num", fcFmt(bl.key, bl.value)));
+      const kd = el("td", "fc-wrap"); kd.append(el("span", "tag", bl.kind)); const mk = kindMark(bl); if (mk) kd.append(mk); row.append(kd);
+      const inputs = fcInputs(bl);
+      row.append(el("td", "fc-formula", bl.formula + (inputs ? ` — ${inputs}` : "")));
+      const sg = el("td", "fc-wrap"); if (bl.suggest) { sg.append(document.createTextNode(`${bl.suggest.name} = ${bl.suggest.formula} `)); if (bl.suggest.data_mart_id) { const a = el("a", null, "Open ↗"); a.href = martUrl(bl.suggest.data_mart_id); a.target = "_blank"; a.rel = "noopener"; sg.append(a); } } else sg.textContent = "—";
+      row.append(sg);
+      tb.append(row);
+    });
+    t.append(tb); wrap.append(t); host.append(wrap);
+    if (st.fit) host.append(el("p", "desc", `Model fit: the curve built from data to ${fmtMonthKey(FC.addMonths(st.fit.from, -1))} predicts ${fmt(st.fit.predicted, "currency", true)} for ${fmtMonthKey(st.fit.from)} – ${fmtMonthKey(st.fit.to)} from the customers OWOX counted; OWOX recorded ${fmt(st.fit.actual, "currency", true)} (${fmtPct(st.fit.gapPct)}).`));
+    const notes = [`Mode: ${st.mode === "cohort_curve" ? "revenue per new customer follows the measured cohort curve" : "first order value, then the window's repeat revenue per customer"}.`, ...st.notes];
+    const ol = el("ol", "notes"); notes.forEach((n) => ol.append(el("li", null, n))); host.append(el("p", "mono-label data__h", "How the forecast reads them"), ol);
+  }
+  function forecastBlock(c) {
+    const levers = c.type === "forecast_levers";
+    const { art, body } = block(c, c.title || "Forecast", levers ? { help: [c.description || "Move a lever and every number below follows.", "The grey triangle and the grey number under a track are today's value; the handle and the blue number are the target. Each lever moves in a straight line from today's value in the first month to the target in the last. Positions stay in this browser."] } : null);
+    if (c.type === "forecast_cards") art.classList.add("block--fstats");
+    if (levers) {
+      art.classList.add("block--sticky");
+      const run0 = fcRun(); if (run0.st && !run0.st.missing && run0.lv) art.querySelector(".block__head").append(scenarioControls(run0.st));
+    } else if (c.description && c.type !== "forecast_chart") body.append(el("p", "desc", c.description));
+    const host = el("div", c.type === "forecast_chart" ? "chart" : null);
+    if (c.type === "forecast_levers") leversBlock(host, c);
+    else if (c.type === "forecast_cards") cardsBlock(host);
+    else if (c.type === "forecast_chart") forecastChartBlock(host, c);
+    else assumptionsBlock(host);
+    body.append(host);
+    if (!levers && c.type !== "forecast_cards") footer(body, Object.assign({}, c, { sources: c.sources || fcSources(), tags: c.tags || (c.type === "forecast_assumptions" ? ["Fact", "Assumption", "Your input"] : ["Fact", "Assumption", "Estimate"]) }), fcQueryIds());
+    return art;
+  }
+
   // ---------- page rendering ----------
   let activePage = 0;
   function renderComponent(c) {
+    if (FC_TYPES.has(c.type)) return forecastBlock(c);
     if (c.type === "scorecards") {
       const wrap = el("section", "cards span-6"); wrap.id = `c-${c.id}`; wrap.setAttribute("aria-label", c.title || "Key numbers");
       (c.metrics || []).forEach((id) => METRICS[id] && wrap.append(scorecard(id)));
@@ -1330,32 +2163,38 @@ __THEME_CSS__
     const parts = [];
     if (anchor) parts.push(`Data through ${fmtDay(anchor)}`);
     if (stamps.length) parts.push(stamps[0] === stamps[stamps.length - 1] ? `source tables updated ${fmtStamp(stamps[0])}` : `source tables updated ${fmtStamp(stamps[0])} – ${fmtStamp(stamps[stamps.length - 1])}`);
-    if (anchor) { const w = winOf(period, anchor); parts.push(`${winLabel(w.cur)} vs ${winLabel(w.cmp)}`); }
+    if (anchor && !FC_ONLY) { const w = winOf(period, anchor); parts.push(`${winLabel(w.cur)} vs ${winLabel(w.cmp)}`); }
+    if (FC_ONLY) {
+      const short = [anchor ? `Data through ${fmtDay(anchor)}` : null, servedFromCopy && copy ? `your copy from ${fmtStamp(new Date(copy.savedAt).toISOString())}` : null].filter(Boolean);
+      if (short.length) $("asof").textContent = short.join(" · ");
+      $("asof").title = parts.join(" · ");
+      renderProgress(); return;
+    }
     if (servedFromCopy && copy) parts.unshift(`Your copy from ${fmtStamp(new Date(copy.savedAt).toISOString())}: Refresh data for live numbers`);
     if (parts.length) $("asof").textContent = parts.join(" · ");
     renderProgress();
   }
   // While queries are out: elapsed seconds and how many of this load's runs have answered.
   let cycle = null, tick = null;
-  function beginCycle(keys) {
-    if (!cycle || cycle.done) cycle = { start: Date.now(), keys: new Set(), done: false };
-    keys.forEach((k) => cycle.keys.add(k));
+  function beginCycle(callIds) {
+    if (!cycle || cycle.done) cycle = { start: Date.now(), callIds: new Set(), done: false };
+    callIds.forEach((k) => cycle.callIds.add(k));
     if (!tick) tick = setInterval(renderProgress, 1000);
     renderProgress();
   }
   function renderProgress() {
     const el0 = $("progress"), btn = $("refresh");
     if (!cycle) { el0.hidden = true; return; }
-    const keys = [...cycle.keys]; const answered = keys.filter((k) => store[k] && !store[k].loading).length;
+    const callIds = [...cycle.callIds]; const answered = callIds.filter((k) => store[k] && !store[k].loading).length;
     const secs = Math.max(0, Math.round((Date.now() - cycle.start) / 1000));
-    if (answered >= keys.length) {
+    if (answered >= callIds.length) {
       cycle.done = true; clearInterval(tick); tick = null;
-      el0.textContent = `Loaded in ${secs} s (${keys.length} runs)`; el0.hidden = false;
+      el0.textContent = `Loaded in ${secs} s (${callIds.length} runs)`; el0.hidden = false;
       if (btn && mcp) { btn.disabled = false; btn.textContent = "Refresh data"; }
       clearTimeout(renderProgress.hide); renderProgress.hide = setTimeout(() => { if (cycle && cycle.done) el0.hidden = true; }, 6000);
       return;
     }
-    el0.textContent = `${secs} s (${answered}/${keys.length} runs)`; el0.hidden = false;
+    el0.textContent = `${secs} s (${answered}/${callIds.length} runs)`; el0.hidden = false;
   }
   function pageLevelState() {
     const box = $("page-state");
@@ -1387,6 +2226,7 @@ __THEME_CSS__
       let input = base, label = q.label || qid;
       if (scope === "range") input = withDateFilter(base, q.date_field, rangeOf(anchor));
       if (scope === "window") { const w = winOf(period, anchor)[which]; input = withDateFilter(base, q.date_field, w, q.as_of); label += which === "cur" ? " · this period" : " · comparison"; }
+      if (scope === "trailing" || scope === "cohort") { input = fcInput(q, base); if (!input) return; }
       out.push({ id, data_mart_id: q.data_mart_id, input, label });
     };
     const fromMetric = (mid) => { const m = METRICS[mid]; if (!m) return; if (m.static) addQ(m.static.query); if (m.series) addQ(m.series.query); if (m.window) { addQ(m.window.query, "cur"); addQ(m.window.query, "cmp"); } if (m.plan) addQ(m.plan.query); };
@@ -1395,6 +2235,7 @@ __THEME_CSS__
     else if (c.type === "breakdown") fromBreakdown(c);
     else if (c.type === "waterfall" || c.type === "table") fromBreakdown(COMPONENTS[c.from]);
     else if (c.type === "drivers") (c.from || []).forEach((b) => fromBreakdown(COMPONENTS[b]));
+    else if (FC_TYPES.has(c.type)) Object.values(FCFG.baselines || {}).forEach((b) => b.query && addQ(b.query));
     return out;
   }
   const sheetName = (s0) => String(s0).replace(/[\[\]*?/\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 90);
@@ -1402,7 +2243,9 @@ __THEME_CSS__
     const box = el("span", "xport" + (xstate[c.id] && xstate[c.id].busy ? " xport--busy" : ""));
     const b = el("button", "xport__btn"); b.type = "button"; b.setAttribute("aria-label", "Export to Google Sheets"); b.innerHTML = SHEETS_ICON;
     b.addEventListener("click", () => { const st = xstate[c.id]; if (st && st.hidden) { st.hidden = false; renderAll(); return; } startExport(c); });
-    box.append(b, el("span", "xport__tip", "Export to Google Sheets"));
+    const tipText = FC_TYPES.has(c.type) ? "Export the source data to Google Sheets (the forecast itself: the download icon on Levers)" : "Export to Google Sheets";
+    b.setAttribute("aria-label", tipText);
+    box.append(b, el("span", "xport__tip", tipText));
     return box;
   }
   function exportPanel(c) {
@@ -1654,13 +2497,13 @@ __THEME_CSS__
     }
   })();
   const sel = $("period");
-  if (!CFG.anchor) sel.hidden = true;
+  if (!CFG.anchor || FC_ONLY) sel.hidden = true;
   periodKeys.forEach((k) => { const o = el("option", null, PERIODS[k].label); o.value = k; if (k === period) o.selected = true; sel.append(o); });
   const cmpSel = $("compare");
   const showCompare = () => {
     const w = winOf(period, anchor || D.today());
     // Always visible next to the period, so viewers find it; year to date only compares with last year.
-    cmpSel.hidden = !CFG.anchor;
+    cmpSel.hidden = !CFG.anchor || FC_ONLY;
     cmpSel.disabled = !hasBoth(period);
     cmpSel.title = hasBoth(period) ? "" : "Year to date always compares with the same dates last year";
     cmpSel.value = w.cmpShort === "last year" ? "last_year" : "previous";
@@ -1693,6 +2536,11 @@ __THEME_CSS__
     db = d; userApi = u;
     try { sampleFn = await window.claude.use("sample"); if (sampleFn) renderAll(); } catch (_) { sampleFn = null; }
     if (u) { try { me = await u.id(); } catch (_) {} }
+    if (FCFG) {
+      try { downloadsApi = await window.claude.use("downloads"); } catch (_) { downloadsApi = null; }
+      if (db) subscribeScenarios();
+      renderAll();
+    }
     if (!db) return;
     db.collection("runs").orderBy("at", "desc").limit(20).onSnapshot((snap) => {
       shared = snap.docs.map((x) => x.data()).filter((r) => r && r.at && Array.isArray(r.calls));

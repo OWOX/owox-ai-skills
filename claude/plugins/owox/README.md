@@ -6,6 +6,7 @@ Connects Claude to [OWOX Data Marts](https://www.owox.com) and adds skills that 
 
 - **OWOX connector** (`https://mcp.owox.com/mcp`). You sign in to your OWOX project with OAuth. Claude reads your project description, contexts and Data Marts, and runs queries on them.
 - **`owox-dashboard` skill.** Asks up to four questions, reads your project's data model, and builds a live dashboard as a claude.ai artifact: scorecards, plan vs fact, trends, breakdowns and top drivers. It works on any project and lists what to add to the project to get more from it.
+- **`owox-forecast` skill.** Asks up to four questions and builds a live unit-economics forecast as a claude.ai artifact: next year's revenue, new customers, CAC, operating profit and peak cash need, with levers for budget, CAC, first-month and repeat revenue, margin and fixed costs. Every starting value is read from your Data Marts or computed from them by a stated rule and marked as such; when you are happy with the page, it offers to add those rules to your Data Marts as calculated fields.
 
 ## Install
 
@@ -20,9 +21,10 @@ claude.ai (web and desktop): Customize → Plugins → Add → Add marketplace �
 ## What runs, and what is sent where
 
 - **While building**, Claude runs queries on your Data Marts through the connector, writes a config file, and runs the bundled `scripts/build_page.py` locally or in Claude's code sandbox. The script validates the config and assembles one HTML page. It makes no network calls.
-- **The published page** holds no numbers. When a viewer opens it, presses **Refresh data**, or opens a tab, it runs the dashboard's queries through **that viewer's own** OWOX connector. The viewer's browser keeps a copy for 12 hours.
+- **The published page** holds no numbers. When a viewer opens it, presses **Refresh data**, or opens a tab, it runs the page's queries through **that viewer's own** OWOX connector. The viewer's browser keeps a copy for 12 hours.
 - **Export to Google Sheets** on a chart creates OWOX Reports in your project and runs them through the Google Sheets Destination the viewer picks on every export. A viewer without one connects their own Google Sheets Destination on an OWOX page.
 - **Run log.** The page keeps a shared log of who refreshed it and when (claude.ai artifact storage, visible to people who can open the page).
+- **Forecast levers and scenarios.** Each viewer's lever positions stay in their own browser. A saved scenario (a name and lever positions) goes to the page's shared storage, visible to people who can open the page. **Download** saves the forecast as a CSV on the viewer's computer.
 - **Recommendations.** For drivers, Claude writes what to do and what to check from the numbers on screen, on the viewer's own Claude usage.
 - The page loads fonts from Google Fonts and nothing else from outside claude.ai.
 
@@ -32,7 +34,13 @@ claude.ai (web and desktop): Customize → Plugins → Add → Add marketplace �
 - The OWOX connector in claude.ai Settings → Connectors, signed in to the OWOX project. Set its tools to **Always allow**: claude.ai does not let artifacts call tools that ask for approval on every call.
 - In claude.ai chat, turn on **Code execution and file creation**.
 
-Each query is an MCP Query Run on your OWOX project; a dashboard usually runs 20–30 on first open. More: [github.com/OWOX/owox-ai-skills](https://github.com/OWOX/owox-ai-skills).
+Each query is an MCP Query Run on your OWOX project; a dashboard usually runs 20–30 on first open, a forecast about 8. More: [github.com/OWOX/owox-ai-skills](https://github.com/OWOX/owox-ai-skills).
+
+## Documentation, support and privacy
+
+- Setting up the OWOX connector: [docs.owox.com](https://docs.owox.com/docs/getting-started/setup-guide/mcp/)
+- Questions and bug reports: [GitHub issues](https://github.com/OWOX/owox-ai-skills/issues)
+- Privacy policy: [owox.com/policies/privacy](https://www.owox.com/policies/privacy)
 
 ## License
 

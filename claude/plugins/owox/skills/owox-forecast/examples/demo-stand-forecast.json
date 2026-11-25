@@ -1,0 +1,416 @@
+{
+ "version": 1,
+ "title": "Unit economics forecast",
+ "lede": "Next year's revenue, new customers and profit at the current ad budget, read live from OWOX. Move the levers to try another budget, CAC or margin.",
+ "connector": "OWOX Data Marts",
+ "project": {
+  "id": "d395dadd5c4fa72b67494df251fcf828",
+  "title": "Demo stand"
+ },
+ "currency": "USD",
+ "time_zone": "America/New_York",
+ "anchor": {
+  "query": "anchor",
+  "value": "order_date | MAX"
+ },
+ "queries": {
+  "anchor": {
+   "label": "Last order date · Orders",
+   "data_mart_id": "6f3d19aa-f6db-4721-8f97-3635a10eec30",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "order_date"
+    ],
+    "aggregations": [
+     {
+      "field": "order_date",
+      "function": "MAX"
+     }
+    ]
+   }
+  },
+  "spend_last": {
+   "label": "Last spend date · Unified Ad Spend",
+   "data_mart_id": "24ae7b9d-8ccc-4db6-a77b-3b932c59b9fb",
+   "scope": "static",
+   "input": {
+    "fields": [
+     "date"
+    ],
+    "aggregations": [
+     {
+      "field": "date",
+      "function": "MAX"
+     }
+    ]
+   }
+  },
+  "revenue_monthly": {
+   "label": "Net revenue by month · Purchases",
+   "data_mart_id": "6f2dfbc5-5690-401b-9291-002f10fa08bb",
+   "scope": "trailing",
+   "months": 24,
+   "date_field": "orders__order_date",
+   "input": {
+    "fields": [
+     "orders__order_date",
+     "line_net_revenue"
+    ],
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ],
+    "date_buckets": [
+     {
+      "field": "orders__order_date",
+      "unit": "MONTH"
+     }
+    ],
+    "sort": [
+     {
+      "field": "orders__order_date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000
+   }
+  },
+  "spend_monthly": {
+   "label": "Ad spend by month · Unified Ad Spend",
+   "data_mart_id": "24ae7b9d-8ccc-4db6-a77b-3b932c59b9fb",
+   "scope": "trailing",
+   "months": 24,
+   "date_field": "date",
+   "input": {
+    "fields": [
+     "date",
+     "spend"
+    ],
+    "aggregations": [
+     {
+      "field": "spend",
+      "function": "SUM"
+     }
+    ],
+    "date_buckets": [
+     {
+      "field": "date",
+      "unit": "MONTH"
+     }
+    ],
+    "sort": [
+     {
+      "field": "date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000
+   }
+  },
+  "new_customers_monthly": {
+   "label": "New customers by first order month · Customer Acquisition",
+   "data_mart_id": "6617ae52-3512-4ebc-9313-770804141aab",
+   "scope": "trailing",
+   "months": 24,
+   "date_field": "first_order_date",
+   "input": {
+    "fields": [
+     "first_order_date",
+     "customer_key"
+    ],
+    "aggregations": [
+     {
+      "field": "customer_key",
+      "function": "COUNT"
+     }
+    ],
+    "date_buckets": [
+     {
+      "field": "first_order_date",
+      "unit": "MONTH"
+     }
+    ],
+    "sort": [
+     {
+      "field": "first_order_date",
+      "direction": "asc"
+     }
+    ],
+    "limit": 1000
+   }
+  },
+  "cohort_revenue": {
+   "label": "Net revenue by first order month and order month · Purchases",
+   "data_mart_id": "6f2dfbc5-5690-401b-9291-002f10fa08bb",
+   "scope": "cohort",
+   "acquired_field": "orders_customer_acquisition__first_order_date",
+   "ordered_field": "orders__order_date",
+   "input": {
+    "fields": [
+     "orders_customer_acquisition__first_order_date",
+     "orders__order_date",
+     "line_net_revenue"
+    ],
+    "aggregations": [
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     }
+    ],
+    "date_buckets": [
+     {
+      "field": "orders_customer_acquisition__first_order_date",
+      "unit": "MONTH"
+     },
+     {
+      "field": "orders__order_date",
+      "unit": "MONTH"
+     }
+    ],
+    "limit": 1000
+   }
+  },
+  "profit_window": {
+   "label": "Net profit, net revenue and completed orders over the window · Purchases",
+   "data_mart_id": "6f2dfbc5-5690-401b-9291-002f10fa08bb",
+   "scope": "trailing",
+   "months": 12,
+   "date_field": "orders__order_date",
+   "input": {
+    "fields": [
+     "line_net_profit",
+     "line_net_revenue",
+     "order_id"
+    ],
+    "aggregations": [
+     {
+      "field": "line_net_profit",
+      "function": "SUM"
+     },
+     {
+      "field": "line_net_revenue",
+      "function": "SUM"
+     },
+     {
+      "field": "order_id",
+      "function": "COUNT_DISTINCT"
+     }
+    ],
+    "filters": [
+     {
+      "field": "orders__status",
+      "operator": "eq",
+      "value": "Completed"
+     }
+    ],
+    "limit": 1
+   }
+  },
+  "base_window": {
+   "label": "Customers with an order in the window · Orders + Customer Acquisition",
+   "data_mart_id": "6f3d19aa-f6db-4721-8f97-3635a10eec30",
+   "scope": "trailing",
+   "months": 12,
+   "date_field": "order_date",
+   "input": {
+    "fields": [
+     "customer_acquisition__unique_count"
+    ],
+    "limit": 1
+   }
+  }
+ },
+ "metrics": {},
+ "forecast": {
+  "horizon": "next_12_months",
+  "source_dates": [
+   {
+    "query": "spend_last",
+    "value": "date | MAX"
+   }
+  ],
+  "baselines": {
+   "revenue": {
+    "op": "series",
+    "label": "Net revenue",
+    "query": "revenue_monthly",
+    "date": "orders__order_date",
+    "value": "line_net_revenue | SUM"
+   },
+   "spend": {
+    "op": "series",
+    "label": "Ad spend",
+    "query": "spend_monthly",
+    "date": "date",
+    "value": "spend | SUM"
+   },
+   "new_customers": {
+    "op": "series",
+    "label": "New customers",
+    "query": "new_customers_monthly",
+    "date": "first_order_date",
+    "value": "customer_key | COUNT"
+   },
+   "cac": {
+    "op": "ratio",
+    "label": "Blended CAC",
+    "numerator": "spend",
+    "denominator": "new_customers",
+    "suggest": {
+     "data_mart_id": "6617ae52-3512-4ebc-9313-770804141aab",
+     "name": "blended_cac",
+     "formula": "ad spend ÷ new customers, per month (a SQL Data Mart that reads Unified Ad Spend and Customer Acquisition by month)",
+     "description": "Ad spend per customer won in the same month, organic customers included."
+    }
+   },
+   "curve": {
+    "op": "cohort_curve",
+    "label": "Net revenue per new customer, by month since the first order",
+    "query": "cohort_revenue",
+    "sizes": "new_customers",
+    "suggest": {
+     "data_mart_id": "6f2dfbc5-5690-401b-9291-002f10fa08bb",
+     "name": "months_since_first_order",
+     "formula": "DATE_DIFF(order date, first order date, MONTH)",
+     "description": "Months between the customer's first order and this order line: 0 is the first month."
+    }
+   },
+   "season_spend": {
+    "op": "seasonality",
+    "label": "Spend seasonality",
+    "of": "spend"
+   },
+   "season_revenue": {
+    "op": "seasonality",
+    "label": "Revenue seasonality",
+    "of": "revenue"
+   },
+   "gross_profit": {
+    "op": "field",
+    "label": "Net profit over the window",
+    "format": "currency",
+    "query": "profit_window",
+    "value": "line_net_profit | SUM"
+   },
+   "revenue_window": {
+    "op": "field",
+    "label": "Net revenue over the window",
+    "format": "currency",
+    "query": "profit_window",
+    "value": "line_net_revenue | SUM"
+   },
+   "orders_window": {
+    "op": "field",
+    "label": "Completed orders over the window",
+    "query": "profit_window",
+    "value": "order_id | COUNTUNIQUE",
+    "format": "number"
+   },
+   "aov": {
+    "op": "ratio",
+    "label": "Average order value",
+    "numerator": "revenue_window",
+    "denominator": "orders_window",
+    "suggest": {
+     "data_mart_id": "6f2dfbc5-5690-401b-9291-002f10fa08bb",
+     "name": "average_order_value",
+     "formula": "SUM(line_net_revenue) ÷ COUNT DISTINCT(order_id), completed orders",
+     "description": "Net revenue per completed order."
+    }
+   },
+   "customer_base": {
+    "op": "field",
+    "label": "Customers with an order in the window",
+    "query": "base_window",
+    "value": "customer_acquisition__unique_count",
+    "format": "number"
+   },
+   "margin": {
+    "op": "ratio",
+    "label": "Gross margin",
+    "numerator": "gross_profit",
+    "denominator": "revenue_window",
+    "suggest": {
+     "data_mart_id": "6f2dfbc5-5690-401b-9291-002f10fa08bb",
+     "name": "net_margin",
+     "formula": "SUM(line_net_profit) ÷ SUM(line_net_revenue)",
+     "description": "Net profit as a share of net revenue, before marketing: completed orders only."
+    }
+   },
+   "fixed_costs": {
+    "op": "input",
+    "label": "Fixed costs per month",
+    "value": null,
+    "source": "user answer",
+    "quote": ""
+   }
+  },
+  "levers": [
+   "budget",
+   "cac",
+   "first_month_revenue",
+   "repeat",
+   "existing",
+   "margin",
+   "fixed_costs"
+  ]
+ },
+ "pages": [
+  {
+   "title": "Forecast",
+   "components": [
+    {
+     "type": "forecast_levers",
+     "title": "Levers",
+     "description": "Move a lever and every number below follows."
+    },
+    {
+     "type": "forecast_cards",
+     "title": "Next 12 months"
+    },
+    {
+     "type": "forecast_chart",
+     "title": "Revenue by month",
+     "description": "The last 12 full months as recorded, then the forecast: customers you already have and customers the budget buys."
+    },
+    {
+     "type": "forecast_assumptions",
+     "title": "Baselines and assumptions",
+     "description": "Every number the forecast starts from, where it comes from, and what would make it a Fact."
+    }
+   ]
+  },
+  {
+   "title": "Data",
+   "components": [
+    {
+     "type": "data"
+    },
+    {
+     "type": "notes",
+     "items": [
+      "Customer Acquisition dates each customer by their first order, so revenue per new customer is read by months since that order.",
+      "CAC is blended: ad spend over every new customer, organic ones included. A budget of zero would buy no customers in this model.",
+      "Ad spend ends a few days before orders, so the window stops at the last month both cover in full."
+     ]
+    }
+   ]
+  }
+ ],
+ "improvements": [
+  {
+   "text": "Add a monthly Unit Economics SQL Data Mart (ad spend and new customers by month): the page then reads CAC as a Fact.",
+   "data_mart_id": "6617ae52-3512-4ebc-9313-770804141aab"
+  },
+  {
+   "text": "Add net_margin to Purchases as a calculated field: gross margin becomes a Fact for every page and answer.",
+   "data_mart_id": "6f2dfbc5-5690-401b-9291-002f10fa08bb"
+  },
+  {
+   "text": "Write a Project description: the business, the number it is run by and its currency. Every answer, not only this page, gets better."
+  }
+ ]
+}

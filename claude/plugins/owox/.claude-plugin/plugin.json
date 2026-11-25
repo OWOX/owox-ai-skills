@@ -1,8 +1,8 @@
 {
   "name": "owox",
   "displayName": "OWOX",
-  "version": "0.2.1",
-  "description": "OWOX Data Marts for your AI assistant: the OWOX MCP connector plus skills. Build live, refreshable dashboards over your published Data Marts that colleagues open with their own OWOX access.",
+  "version": "0.3.0",
+  "description": "OWOX Data Marts for your AI assistant: the OWOX MCP connector plus skills. Build live, refreshable dashboards and unit-economics forecasts over your published Data Marts that colleagues open with their own OWOX access.",
   "author": {
     "name": "OWOX",
     "url": "https://www.owox.com"
@@ -17,10 +17,11 @@
     "plan vs fact",
     "kpi",
     "analytics",
-    "mcp"
+    "mcp",
+    "forecast",
+    "unit economics"
   ],
   "privacyPolicyUrl": "https://www.owox.com/policies/privacy",
   "documentationUrl": "https://docs.owox.com/docs/getting-started/setup-guide/mcp/",
-  "supportUrl": "https://github.com/OWOX/owox-ai-skills/issues",
-  "icon": ".claude-plugin/icon.png"
+  "supportUrl": "https://github.com/OWOX/owox-ai-skills/issues"
 }
