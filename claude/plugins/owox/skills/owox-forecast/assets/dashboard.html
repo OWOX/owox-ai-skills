@@ -675,6 +675,45 @@ __THEME_CSS__
   // Every call the page makes: its key, the query id, the exact input sent to OWOX.
   // Queries load per tab: a tab's queries run when the viewer first opens it (the anchor query always runs).
   const visited = new Set();
+  // ---------- forecast: its queries, window and baselines ----------
+  const FCFG = CFG.forecast || null;
+  const FC_TYPES = new Set(["forecast_levers", "forecast_cards", "forecast_chart", "forecast_assumptions"]);
+  const fcQueryIds = () => { if (!FCFG) return []; const ids = new Set(Object.values(FCFG.baselines || {}).map((b) => b.query).filter(Boolean)); (FCFG.source_dates || []).forEach((x) => ids.add(x.query)); return [...ids]; };
+  // Each source's last complete day (a day from today on is still being written); undefined while loading.
+  function fcSourceDays() {
+    return (FCFG.source_dates || []).map((x) => {
+      const t = tableOf(x.query); if (!t) return undefined;
+      let max = null; t.rows.forEach((r) => { const d = toDay(r[x.value]); if (d && (!max || d > max)) max = d; });
+      if (!max) return null;
+      const today = D.today(); return max >= today ? D.add(today, -1) : max;
+    });
+  }
+  function fcWindow() {
+    if (!FCFG || !anchor) return null;
+    const days = fcSourceDays(); if (days.some((d) => d === undefined)) return null;
+    return FC.forecastWindow(anchor, days.filter(Boolean));
+  }
+  const fcEnd = () => { const w = fcWindow(); return w ? w.to : null; };
+  const lastDayOf = (k) => D.ymd(+k.slice(0, 4), +k.slice(5, 7), 31);
+  // trailing: 24 months to the anchor (the anchor month shows as partial Fact), or the 12-month window itself.
+  // cohort: 36 months to the anchor on both the acquisition and the order date.
+  function fcInput(q, base) {
+    const w = fcWindow(); if (!w) return null;
+    if (q.scope === "trailing") { const m = q.months || 24; return withDateFilter(base, q.date_field, [FC.addMonths(w.to, -(m - 1)) + "-01", m === 12 ? lastDayOf(w.to) : anchor]); }
+    const r = [FC.addMonths(anchor.slice(0, 7), -35) + "-01", anchor];
+    return withDateFilter(withDateFilter(base, q.acquired_field, r), q.ordered_field, r);
+  }
+  let fcCache = null;
+  function fcState() {
+    if (!FCFG || !anchor) return null;
+    const w = fcWindow(); if (!w) return null;
+    const tables = {}; fcQueryIds().forEach((q) => { const t = tableOf(q); if (t) tables[q] = t; });
+    const sig = anchor + w.to + JSON.stringify(Object.keys(tables).map((q) => [q, store[q] && store[q].at, tables[q].rows.length]));
+    if (fcCache && fcCache.sig === sig) return fcCache.v;
+    const v = FC.evaluate(FCFG, QUERIES, tables, { anchor, sourceMaxDays: fcSourceDays().filter(Boolean) });
+    fcCache = { sig, v }; return v;
+  }
+  let fcEndSeen = null;
   function pageQueries(p) {
     const out = new Set();
     const fromMetric = (mid) => { const m = METRICS[mid]; if (!m) return; [m.series, m.window, m.plan, m.static].forEach((r) => r && out.add(r.query)); if (m.to_primary) (m.to_primary.multiply || []).forEach(fromMetric); };
@@ -687,6 +726,7 @@ __THEME_CSS__
       if (c.type === "drivers") (c.from || []).forEach((b) => fromBreakdown(COMPONENTS[b]));
     });
     if (CFG.primary_metric) fromMetric(CFG.primary_metric);
+    if ((p.components || []).some((c) => FC_TYPES.has(c.type))) fcQueryIds().forEach((q) => out.add(q));
     return out;
   }
   function neededQueries() {
@@ -704,6 +744,7 @@ __THEME_CSS__
       if (scope === "static") calls.push({ key: qid, qid, input: base, scope });
       else if (!anchor) return;
       else if (scope === "range") { const ch = rangeChunks(q, anchor); ch.forEach((w, i) => calls.push({ key: ch.length === 1 ? qid : `${qid}~${i}`, qid, input: withDateFilter(base, q.date_field, w), scope })); }
+      else if (scope === "trailing" || scope === "cohort") { const input = fcInput(q, base); if (input) calls.push({ key: qid, qid, input, scope }); }
       else if (scope === "window") {
         const w = winOf(period, anchor);
         calls.push({ key: `${qid}@cur`, qid, input: withDateFilter(base, q.date_field, w.cur, q.as_of), scope, window: "cur" });
@@ -792,6 +833,7 @@ __THEME_CSS__
       calls.forEach((c) => { const wk = c.key + "|" + JSON.stringify(c.input); const e = held.entries[wk]; if (e && !watches.has(wk)) { watches.set(wk, Object.assign({ fromCopy: true, unsub: () => {}, cancelled: false }, c)); store[c.key] = { table: e.table, error: null, at: e.at, loading: false }; used += 1; } });
       if (used) { servedFromCopy = true; Object.entries(held.ai || {}).forEach(([k, v]) => { if (v && v.sig && aiOf(k).status !== "done") ai[k] = { sig: v.sig, status: "done", data: v.data, code: null }; }); }
       if (used && CFG.anchor && calls.some((c) => c.qid === CFG.anchor.query)) { const before = anchor; computeAnchor(); if (anchor && anchor !== before) { syncWatches(trigger); return; } }
+      if (used && FCFG) { const e = fcEnd(); if (e !== fcEndSeen) { fcEndSeen = e; syncWatches(trigger); return; } }
     }
     const wanted = new Set(calls.map((c) => c.key + "|" + JSON.stringify(c.input)));
     for (const [k, w] of [...watches]) if (force || !wanted.has(k)) cancelWatch(k, w);
@@ -819,6 +861,7 @@ __THEME_CSS__
       store[c.key] = { table: transient ? prev.table : null, error: ev.error, at: prev.at, loading: false };
     }
     if (CFG.anchor && c.qid === CFG.anchor.query) { const before = anchor; computeAnchor(); if (anchor && anchor !== before) syncWatches(before ? "anchor" : "open"); }
+    if (FCFG && (FCFG.source_dates || []).some((x) => x.query === c.qid)) { const e = fcEnd(); if (e !== fcEndSeen) { fcEndSeen = e; syncWatches("anchor"); } }
     noteCall(c, ev);
     renderAll();
   }
@@ -1654,6 +1697,7 @@ __THEME_CSS__
       let input = base, label = q.label || qid;
       if (scope === "range") input = withDateFilter(base, q.date_field, rangeOf(anchor));
       if (scope === "window") { const w = winOf(period, anchor)[which]; input = withDateFilter(base, q.date_field, w, q.as_of); label += which === "cur" ? " · this period" : " · comparison"; }
+      if (scope === "trailing" || scope === "cohort") { input = fcInput(q, base); if (!input) return; }
       out.push({ id, data_mart_id: q.data_mart_id, input, label });
     };
     const fromMetric = (mid) => { const m = METRICS[mid]; if (!m) return; if (m.static) addQ(m.static.query); if (m.series) addQ(m.series.query); if (m.window) { addQ(m.window.query, "cur"); addQ(m.window.query, "cmp"); } if (m.plan) addQ(m.plan.query); };
@@ -1662,6 +1706,7 @@ __THEME_CSS__
     else if (c.type === "breakdown") fromBreakdown(c);
     else if (c.type === "waterfall" || c.type === "table") fromBreakdown(COMPONENTS[c.from]);
     else if (c.type === "drivers") (c.from || []).forEach((b) => fromBreakdown(COMPONENTS[b]));
+    else if (FC_TYPES.has(c.type)) Object.values(FCFG.baselines || {}).forEach((b) => b.query && addQ(b.query));
     return out;
   }
   const sheetName = (s0) => String(s0).replace(/[\[\]*?/\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 90);
