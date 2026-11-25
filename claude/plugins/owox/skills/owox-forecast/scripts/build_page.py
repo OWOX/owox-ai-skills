@@ -388,6 +388,11 @@ def main():
         "db": {"rules": [{"path": "runs", "read": "view", "write": "interact"}]},
         "user": {"scopes": ["profile"]},
     }
+    if cfg.get("forecast"):
+        # Saved scenarios: everyone who can open the page reads them, each person writes only their own document.
+        caps["db"]["rules"] += [{"path": "scenarios", "read": "view", "write": "owner"},
+                                {"path": "scenarios/{self}", "read": "view", "write": "interact"}]
+        caps["downloads"] = True
     if any(c.get("type") == "drivers" for p in cfg["pages"] for c in p.get("components") or []) and cfg.get("ask_claude", True):
         caps["sample"] = {}
     def n_calls(q):

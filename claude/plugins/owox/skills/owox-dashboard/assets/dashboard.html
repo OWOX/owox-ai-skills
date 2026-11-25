@@ -240,6 +240,11 @@ pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1p
    screens tall and wide enough to spare it. */
 @media (min-width: 980px) and (min-height: 700px) { .block--sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; box-shadow: 0 6px 16px -10px rgba(0,0,0,.6); } }
 .block--sticky .block__body { padding-block: 12px 14px; }
+.block--sticky .block__head { flex-wrap: wrap; row-gap: 6px; padding-block: 6px; }
+.select--sm { height: 26px; padding: 0 8px; font-size: 12.5px; max-width: 240px; }
+.scn-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+.scn-form input { height: 28px; padding: 0 10px; min-width: 0; flex: 1 1 220px; max-width: 360px; background: var(--bg-nested); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius); font: 400 13px var(--font-body); }
+.scn-msg { margin: 0 0 10px; font: 400 12px/1.5 var(--font-mono); color: var(--warn); }
 .lever__track { position: relative; height: 26px; display: flex; align-items: center; }
 .lever input[type=range] { width: 100%; margin: 0; accent-color: var(--metric); cursor: pointer; }
 .lever__mark { position: absolute; top: 19px; width: 0; height: 0; margin-left: -5px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--text-muted); pointer-events: none; }
@@ -650,7 +655,19 @@ __THEME_CSS__
       });
       return out;
     }
-    return { addMonths, monthSpan, monthsBetween, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel,
+    // The forecast as a CSV file: the scenario, the levers, the months, the baselines. Numbers stay raw.
+    function forecastCsv(o) {
+      const cell = (v) => { if (v == null) return ""; const t = typeof v === "number" ? String(Math.round(v * 100) / 100) : String(v); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+      const line = (xs) => xs.map(cell).join(",");
+      const out = [o.title, line(["Project", o.project]), line(["Generated", o.generatedAt])];
+      if (o.scenario) out.push(line(["Scenario", o.scenario]));
+      out.push("", line(["Lever", "Now", "Target", "Kind"]), ...o.levers.map((l) => line([l.label, l.now, l.target, l.kind])));
+      out.push("", line(["Month", "Existing customers revenue", "New customers revenue", "Revenue", "Ad spend", "New customers", "CAC", "Gross profit", "Fixed costs", "Operating profit", "Cumulative cash"]));
+      o.rows.forEach((r, i) => out.push(line([o.months[i], r.baseRev, r.newRev, r.revenue, r.budget, r.newCustomers, r.cac, r.grossProfit, r.fixed, r.operatingProfit, r.cumCash])));
+      out.push("", line(["Baseline", "Value", "Kind", "How it is read", "Window"]), ...o.baselines.map((b) => line([b.label, Array.isArray(b.value) ? b.value.map((v) => Math.round(v * 100) / 100).join(" ") : b.value, b.kind, b.formula, b.window ? `${b.window[0]} – ${b.window[1]}` : ""])));
+      return out.join("\n") + "\n";
+    }
+    return { forecastCsv, addMonths, monthSpan, monthsBetween, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel,
       toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue, modelFit, evaluate, leverRange, leverBase, toModelLevers, restoreLevers };
   })();
   // forecast-core:end
@@ -1799,9 +1816,92 @@ __THEME_CSS__
       fixed_costs: { name: "Fixed costs / month", full: "Fixed costs per month", src: bl.fixed_costs },
     }[k];
   }
+  // ---------- scenarios (shared, in the page's database) and the forecast download ----------
+  // One document per person, scenarios/<their id>: { items: [{ name, levers, at }] }. Everyone who can open
+  // the page reads them; each person writes only their own document.
+  let scenarios = [], scenarioNames = {}, scenarioSel = "", saveOpen = false, saveName = "", scenarioMsg = "", downloadsApi = null;
+  function subscribeScenarios() {
+    db.collection("scenarios").onSnapshot(async (snap) => {
+      scenarios = snap.docs.map((x) => ({ uid: x.id, items: (((x.data() || {}).items) || []).filter((i) => i && typeof i.name === "string" && i.levers && typeof i.levers === "object").slice(0, 20) }));
+      try { if (userApi) scenarioNames = await userApi.profiles(scenarios.map((x) => x.uid)); } catch (_) {}
+      renderAll();
+    }, () => {});
+  }
+  const scenarioOf = (v) => { const [uid, i] = String(v).split("|"); const owner = scenarios.find((x) => x.uid === uid); return owner && owner.items[+i] ? { uid, i: +i, item: owner.items[+i] } : null; };
+  async function writeMine(items) { await db.doc(`scenarios/${me}`).set({ items, at: Date.now() }); }
+  function scenarioControls(st) {
+    const wrap = el("span", "scn"); wrap.style.display = "inline-flex"; wrap.style.gap = "6px"; wrap.style.alignItems = "center";
+    const all = scenarios.flatMap((o) => o.items.map((it, i) => ({ v: `${o.uid}|${i}`, it, o })));
+    if (all.length) {
+      const sel = el("select", "select select--sm"); sel.id = "scenario"; sel.setAttribute("aria-label", "Saved scenarios");
+      const ph = el("option", null, `Scenarios (${all.length})`); ph.value = ""; sel.append(ph);
+      scenarios.forEach((o) => {
+        if (!o.items.length) return;
+        const g = el("optgroup"); g.label = o.uid === me ? "Yours" : ((scenarioNames[o.uid] && scenarioNames[o.uid].name) || "Someone");
+        o.items.forEach((it, i) => { const op = el("option", null, it.name); op.value = `${o.uid}|${i}`; g.append(op); });
+        sel.append(g);
+      });
+      sel.value = scenarioOf(scenarioSel) ? scenarioSel : "";
+      sel.addEventListener("change", () => { const s0 = scenarioOf(sel.value); scenarioSel = sel.value; if (s0) { leverSaved = Object.assign({}, s0.item.levers); saveLevers(); } renderAll(); });
+      wrap.append(sel);
+      const cur = scenarioOf(scenarioSel);
+      if (cur && cur.uid === me) {
+        const del = el("button", "btn btn--ghost btn--sm", "Delete"); del.type = "button"; del.title = `Delete “${cur.item.name}”`;
+        del.addEventListener("click", async () => { const mine = (scenarios.find((x) => x.uid === me) || { items: [] }).items.filter((_, j) => j !== cur.i); try { await writeMine(mine); scenarioSel = ""; scenarioMsg = ""; } catch (_) { scenarioMsg = "Not deleted: the page could not write to its shared storage."; } renderAll(); });
+        wrap.append(del);
+      }
+    }
+    if (db && me) {
+      const save = el("button", "btn btn--ghost btn--sm", "Save scenario"); save.type = "button";
+      save.addEventListener("click", () => { saveOpen = !saveOpen; scenarioMsg = ""; renderAll(); setTimeout(() => { const i = $("scenario-name"); if (i) i.focus(); }, 0); });
+      wrap.append(save);
+    }
+    if (downloadsApi) {
+      const dl = el("button", "btn btn--ghost btn--sm", "Download"); dl.type = "button"; dl.title = "Download the forecast as a CSV file: levers, months, baselines";
+      dl.addEventListener("click", () => downloadForecast());
+      wrap.append(dl);
+    }
+    return wrap;
+  }
+  function saveForm(host) {
+    const f = el("form", "scn-form");
+    const inp = el("input"); inp.id = "scenario-name"; inp.type = "text"; inp.maxLength = 60; inp.placeholder = "Name this scenario, e.g. Budget +30%"; inp.setAttribute("aria-label", "Scenario name");
+    inp.value = saveName; inp.addEventListener("input", () => { saveName = inp.value; });
+    const ok = el("button", "btn btn--ghost btn--sm", "Save"); ok.type = "submit";
+    const no = el("button", "btn btn--ghost btn--sm", "Cancel"); no.type = "button"; no.addEventListener("click", () => { saveOpen = false; renderAll(); });
+    f.append(inp, ok, no);
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = inp.value.trim(); if (!name) { inp.focus(); return; }
+      const run = fcRun(); if (!run.lv) return;
+      const mine = (scenarios.find((x) => x.uid === me) || { items: [] }).items.filter((i) => i.name !== name);
+      const next = [...mine, { name, levers: Object.assign({}, run.lv), at: Date.now() }].slice(-20);
+      try { await writeMine(next); saveOpen = false; saveName = ""; scenarioMsg = ""; scenarioSel = `${me}|${next.length - 1}`; }
+      catch (_) { scenarioMsg = "Not saved: your access to this page lets you view scenarios, not save them. Ask its owner for the Contributor role."; }
+      renderAll();
+    });
+    host.append(f);
+  }
+  async function downloadForecast() {
+    const run = fcRun(); if (!run.res || run.res.error) return;
+    const { st, lv, res } = run;
+    const cur = scenarioOf(scenarioSel);
+    const csv = FC.forecastCsv({
+      title: CFG.title || "Forecast", project: PROJECT.title || "", generatedAt: new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC",
+      scenario: cur ? cur.item.name : "",
+      levers: leverKeys(st).map((k) => { const meta = leverMeta(k, st); return { label: meta.name, now: FC.leverBase(k, st.model.b), target: lv[k], kind: meta.src ? meta.src.kind : "Assumption" }; }),
+      months: st.model.horizonKeys, rows: res.rows, baselines: Object.values(st.baselines),
+    });
+    const slug = String(CFG.title || "forecast").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    try { await downloadsApi.save({ filename: `${slug}-${D.today()}.csv`, data: csv }); scenarioMsg = ""; }
+    catch (e) { scenarioMsg = e && e.code === "declined" ? "" : `Not downloaded: ${(e && e.message) || "the browser refused the file"}.`; }
+    renderAll();
+  }
   function leversBlock(host, c) {
     const run = fcRun(); if (fcProblem(host, run)) return;
     const { st, lv } = run; const b = st.model.b;
+    if (scenarioMsg) host.append(el("p", "scn-msg", scenarioMsg));
+    if (saveOpen) saveForm(host);
     const box = el("div", "levers");
     leverKeys(st).forEach((k) => {
       const base = FC.leverBase(k, b), r = FC.leverRange(k, base, b); if (!r) return;
@@ -1817,7 +1917,7 @@ __THEME_CSS__
       track.append(input, mark); row.append(track);
       const vals = el("p", "lever__vals"); const now = el("span"); now.title = kind; now.append(el("em", null, kind === "Your input" ? "input " : "now "), document.createTextNode(fcFmt(k, base, true)));
       const tgt = el("span", "tgt"); tgt.title = "Target: where the lever ends in the last month"; const tv = el("b", null, fcFmt(k, lv[k], true)); tgt.append(tv); vals.append(now, tgt); row.append(vals);
-      input.addEventListener("input", () => { leverSaved[k] = +input.value; tv.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
+      input.addEventListener("input", () => { if (scenarioSel) { scenarioSel = ""; const s0 = $("scenario"); if (s0) s0.value = ""; } leverSaved[k] = +input.value; tv.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
       box.append(row);
     });
     host.append(box);
@@ -1940,7 +2040,8 @@ __THEME_CSS__
     if (levers) {
       art.classList.add("block--sticky");
       const reset = el("button", "btn btn--ghost btn--sm", "Reset"); reset.type = "button"; reset.title = "Return every lever to today's value";
-      reset.addEventListener("click", () => { leverSaved = {}; saveLevers(); renderAll(); });
+      reset.addEventListener("click", () => { leverSaved = {}; scenarioSel = ""; saveLevers(); renderAll(); });
+      const run0 = fcRun(); if (run0.st && !run0.st.missing) art.querySelector(".block__head").append(scenarioControls(run0.st));
       art.querySelector(".block__head").append(reset);
     } else if (c.description && c.type !== "forecast_chart") body.append(el("p", "desc", c.description));
     const host = el("div", c.type === "forecast_chart" ? "chart" : null);
@@ -2090,7 +2191,9 @@ __THEME_CSS__
     const box = el("span", "xport" + (xstate[c.id] && xstate[c.id].busy ? " xport--busy" : ""));
     const b = el("button", "xport__btn"); b.type = "button"; b.setAttribute("aria-label", "Export to Google Sheets"); b.innerHTML = SHEETS_ICON;
     b.addEventListener("click", () => { const st = xstate[c.id]; if (st && st.hidden) { st.hidden = false; renderAll(); return; } startExport(c); });
-    box.append(b, el("span", "xport__tip", "Export to Google Sheets"));
+    const tipText = FC_TYPES.has(c.type) ? "Export the source data to Google Sheets (the forecast itself: Download)" : "Export to Google Sheets";
+    b.setAttribute("aria-label", tipText);
+    box.append(b, el("span", "xport__tip", tipText));
     return box;
   }
   function exportPanel(c) {
@@ -2381,6 +2484,11 @@ __THEME_CSS__
     db = d; userApi = u;
     try { sampleFn = await window.claude.use("sample"); if (sampleFn) renderAll(); } catch (_) { sampleFn = null; }
     if (u) { try { me = await u.id(); } catch (_) {} }
+    if (FCFG) {
+      try { downloadsApi = await window.claude.use("downloads"); } catch (_) { downloadsApi = null; }
+      if (db) subscribeScenarios();
+      renderAll();
+    }
     if (!db) return;
     db.collection("runs").orderBy("at", "desc").limit(20).onSnapshot((snap) => {
       shared = snap.docs.map((x) => x.data()).filter((r) => r && r.at && Array.isArray(r.calls));

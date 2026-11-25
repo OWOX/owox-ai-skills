@@ -68,6 +68,8 @@ For each horizon month t = 1…H:
 - revenue_t = existing customers' revenue_t + newRev_t; gross profit = revenue × margin.
 - operating profit_t = gross profit − budget − fixed costs; cumulative cash is its running sum; peak cash need = max(0, −lowest cumulative cash).
 
+Scenarios: a viewer saves the current lever targets under a name; they are stored in the page's shared storage (`scenarios/<their id>`), visible to everyone who can open the page, and applying one sets the levers (clamped to today's ranges). Download writes the levers, the monthly forecast and the baselines to a CSV. Neither goes into OWOX.
+
 Lever ranges are the engine's own: half to double the baseline; margin 0–100%; fixed costs from 0 to double (or to half of existing customers' monthly revenue when the user left them out, so the lever is there to try). Positions stay in each viewer's browser; Reset returns to the baselines. The config never sets a target or a range.
 
 Blended CAC overstates how new customers scale with budget: at zero budget the model wins no one. Say so in the notes.

@@ -24,7 +24,7 @@ claude.ai (web and desktop): Customize → Plugins → Add → Add marketplace �
 - **The published page** holds no numbers. When a viewer opens it, presses **Refresh data**, or opens a tab, it runs the page's queries through **that viewer's own** OWOX connector. The viewer's browser keeps a copy for 12 hours.
 - **Export to Google Sheets** on a chart creates OWOX Reports in your project and runs them through the Google Sheets Destination the viewer picks on every export. A viewer without one connects their own Google Sheets Destination on an OWOX page.
 - **Run log.** The page keeps a shared log of who refreshed it and when (claude.ai artifact storage, visible to people who can open the page).
-- **Forecast levers.** Each viewer's lever positions stay in their own browser.
+- **Forecast levers and scenarios.** Each viewer's lever positions stay in their own browser. A saved scenario (a name and lever positions) goes to the page's shared storage, visible to people who can open the page. **Download** saves the forecast as a CSV on the viewer's computer.
 - **Recommendations.** For drivers, Claude writes what to do and what to check from the numbers on screen, on the viewer's own Claude usage.
 - The page loads fonts from Google Fonts and nothing else from outside claude.ai.
 

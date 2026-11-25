@@ -58,7 +58,7 @@ In plain words:
 
 - what the page shows and for which horizon; the first open costs N query runs (`calls_when_a_tab_is_first_opened`), each a billed MCP Query Run on the viewer's own connector;
 - which baselines are Facts, which are Assumptions and how each is computed (the `!` next to it says the same), which fields you chose as "new customer" and "spend", and the mode (cohort curve, or first order value plus repeat revenue and why);
-- what the levers do and that their positions stay in each viewer's browser;
+- what the levers do; that positions stay in each viewer's browser until they **Save scenario**, which shares a named set of positions with everyone who opens the page (a Contributor role is needed to save); that **Download** saves the forecast as a CSV; and that the Google Sheets icon exports the source data from OWOX, not the forecast;
 - sharing, as `owox-dashboard`: Share → Anyone at <organization> with the role Contributor; viewers need the same OWOX connector signed in to the same project; set `query_data_mart` to Always allow.
 
 ## 6. Iterate

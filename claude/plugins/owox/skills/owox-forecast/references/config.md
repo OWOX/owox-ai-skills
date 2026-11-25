@@ -118,4 +118,6 @@ Queries: `scope: "trailing"` takes `date_field` and `months` (24, a monthly seri
 
 `build_page.py` rejects a number in a baseline (other than an `input`'s value), a number or date in a forecast query's filter, and any key that sets a lever target or range; it warns about figures quoted in prose.
 
+The levers block also carries **Save scenario** (named lever positions in the page's shared storage: everyone who opens the page sees and can apply them, each person deletes only their own) and **Download** (the forecast as a CSV: levers, months, baselines). `build_page.py` adds the `downloads` capability and the `scenarios` storage rules for a forecast. The Google Sheets icon on forecast blocks exports the source data from OWOX, never the forecast.
+
 Components: `forecast_levers`, `forecast_cards`, `forecast_chart`, `forecast_assumptions`. Their Source lists the Data Marts the baselines read. Tags: `Assumption` (computed in the page from OWOX values by a fixed rule; a calculated field would make it a Fact) and `Your input` (a value the user gave; OWOX does not hold it), next to `Fact` and `Estimate`.
