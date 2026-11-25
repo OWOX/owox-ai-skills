@@ -22,8 +22,15 @@ UNSAFE_SVG = re.compile(r"<script|<foreignObject|\son[a-z]+\s*=|javascript:", re
 # another stylesheet from that same host.
 FONTS_LINK = re.compile(r'<link rel="stylesheet" href="[^"]*">')
 FONT_HOST = re.search(r'<link rel="preconnect" href="([^"]+)">', ENGINE.read_text()).group(1)
-SCOPES = {"static", "range", "window"}
-COMPONENT_TYPES = {"scorecards", "plan_vs_fact", "trend", "breakdown", "waterfall", "drivers", "table", "notes", "data"}
+SCOPES = {"static", "range", "window", "trailing", "cohort"}
+FORECAST_TYPES = {"forecast_levers", "forecast_cards", "forecast_chart", "forecast_assumptions"}
+COMPONENT_TYPES = {"scorecards", "plan_vs_fact", "trend", "breakdown", "waterfall", "drivers", "table", "notes", "data"} | FORECAST_TYPES
+BASELINE_OPS = {"field", "series", "ratio", "cohort_curve", "seasonality", "input"}
+LEVERS = {"budget", "cac", "first_month_revenue", "repeat", "margin", "fixed_costs"}
+HORIZONS = {"next_12_months", "through_next_december"}
+FORECAST_KEYS = {"horizon", "source_dates", "baselines", "levers"}
+DATE_LITERAL = re.compile(r"^\d{4}-\d{2}(-\d{2})?")
+PROSE_FIGURE = re.compile(r"[$€£]\s?\d|\d+(\.\d+)?\s?%")
 FORMATS = {"currency", "number", "percent", "ratio", "decimal"}
 PERIODS = {"ytd", "mtd", "last_7_days", "last_28_days", "last_365_days", "last_week", "last_month", "last_quarter", "last_year"}
 # owox.com reading mode, used only when a dashboard opts in to follow the viewer's light theme.
@@ -65,8 +72,17 @@ def validate(cfg):
         need("data_mart_id" not in inp, f"queries.{qid}: put data_mart_id next to input, not inside it")
         scope = q.get("scope", "static")
         need(scope in SCOPES, f"queries.{qid}: scope must be one of {sorted(SCOPES)}")
-        if scope in ("range", "window"):
+        if scope in ("range", "window", "trailing"):
             need(q.get("date_field"), f"queries.{qid}: scope {scope} needs date_field (the field the page filters by period)")
+        month_bucket = lambda f: any(b.get("field") == f and b.get("unit") == "MONTH" for b in (inp.get("date_buckets") or []))
+        if scope == "trailing":
+            need(q.get("months", 24) in (12, 24), f"queries.{qid}: a trailing query reads 12 or 24 full months (months: 12 | 24)")
+            if q.get("months", 24) == 24:
+                need(month_bucket(q.get("date_field")), f"queries.{qid}: a 24-month trailing query is a monthly series: bucket date_field by MONTH")
+        if scope == "cohort":
+            for k in ("acquired_field", "ordered_field"):
+                need(q.get(k) and month_bucket(q.get(k)), f"queries.{qid}: a cohort query needs {k}, bucketed by MONTH")
+            need(inp.get("limit") == 1000, f"queries.{qid}: a cohort query reads up to 36 × 36 cells; set limit to 1000")
         need(not q.get("as_of") or scope == "window", f"queries.{qid}: as_of (read the period's last day only) applies to window queries")
         if scope == "range":
             buckets = inp.get("date_buckets") or []
@@ -77,7 +93,7 @@ def validate(cfg):
         if scope == "range" and daily and lim < 366:
             errs.append(f"queries.{qid}: a daily range is read one calendar year per call; set limit to 1000")
     anchor = cfg.get("anchor") or {}
-    dated = any(q.get("scope", "static") in ("range", "window") for q in queries.values())
+    dated = any(q.get("scope", "static") in ("range", "window", "trailing", "cohort") for q in queries.values())
     if dated or anchor:
         need(anchor.get("query") in queries, "anchor.query must name a query (the MAX of the primary Data Mart's date); a dashboard without dates uses static queries only")
     if anchor.get("query") in queries:
@@ -169,6 +185,7 @@ def validate(cfg):
         if t == "drivers":
             for b in c.get("from") or []:
                 need(ids.get(b, {}).get("type") == "breakdown", f"component {cid}: '{b}' is not a breakdown component id")
+    errs += validate_forecast(cfg, queries, ids)
     theme = cfg.get("theme") or {}
     for mode in ("dark", "light"):
         for k, v in ((theme.get("tokens") or {}).get(mode) or {}).items():
@@ -188,6 +205,116 @@ def validate(cfg):
     fonts = theme.get("fonts_css")
     need(not fonts or fonts.startswith(FONT_HOST + "/"), "theme.fonts_css must be a Google Fonts stylesheet URL")
     return errs
+
+
+def forecast_queries(cfg):
+    """Every query a forecast section reads: the baselines' queries and the source dates."""
+    fc = cfg.get("forecast") or {}
+    out = {b.get("query") for b in (fc.get("baselines") or {}).values() if isinstance(b, dict) and b.get("query")}
+    out |= {s.get("query") for s in (fc.get("source_dates") or []) if isinstance(s, dict) and s.get("query")}
+    return out
+
+
+def validate_forecast(cfg, queries, comps):
+    """The forecast section: operations and field names only, never a number the model computed."""
+    errs = []
+    need = lambda cond, msg: cond or errs.append(msg)
+    fc = cfg.get("forecast")
+    blocks = [cid for cid, c in comps.items() if c.get("type") in FORECAST_TYPES]
+    if not fc:
+        need(not blocks, f"components {blocks}: forecast blocks need a top-level forecast section")
+        return errs
+    need(blocks, "forecast: the section needs at least one forecast block (forecast_levers, forecast_cards, forecast_chart, forecast_assumptions)")
+    for k in fc:
+        need(k in FORECAST_KEYS, f"forecast.{k}: not a forecast key; lever targets and bounds are never set in the config (the page derives them from the baselines)")
+    need(fc.get("horizon") in HORIZONS, f"forecast.horizon must be one of {sorted(HORIZONS)}")
+    for s in fc.get("source_dates") or []:
+        q = queries.get((s or {}).get("query"))
+        need(q and q.get("scope", "static") == "static" and s.get("value"), "forecast.source_dates: each item is { query: <static MAX query>, value: <its column> }")
+    bl = fc.get("baselines") or {}
+
+    def numbers(v, path):
+        if isinstance(v, bool):
+            return
+        if isinstance(v, (int, float)):
+            errs.append(f"forecast.baselines.{path}: a number in a baseline; the page computes baselines from OWOX values, only an input holds a user's number")
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                numbers(x, f"{path}.{k}")
+        elif isinstance(v, list):
+            for i, x in enumerate(v):
+                numbers(x, f"{path}[{i}]")
+
+    def q_of(key, b, scopes):
+        q = queries.get(b.get("query"))
+        need(q, f"forecast.baselines.{key}.query '{b.get('query')}' is not a query")
+        if q:
+            need(q.get("scope", "static") in scopes, f"forecast.baselines.{key}: query '{b['query']}' must have scope in {scopes}")
+        return q or {}
+
+    def suggest(key, b):
+        sg = b.get("suggest") or {}
+        need(all(sg.get(k) for k in ("data_mart_id", "name", "formula", "description")),
+             f"forecast.baselines.{key}: an Assumption needs suggest {{ data_mart_id, name, formula, description }}: the calculated field that would replace it")
+
+    for key, b in bl.items():
+        if not isinstance(b, dict):
+            errs.append(f"forecast.baselines.{key}: must be an object")
+            continue
+        op = b.get("op")
+        need(op in BASELINE_OPS, f"forecast.baselines.{key}: op must be one of {sorted(BASELINE_OPS)}")
+        need(b.get("label"), f"forecast.baselines.{key}: label is required")
+        if op == "input":
+            v = b.get("value")
+            need(v is None or (isinstance(v, (int, float)) and not isinstance(v, bool)), f"forecast.baselines.{key}: input value is a number or null")
+            need(b.get("source") == "user answer", f"forecast.baselines.{key}: an input's source is \"user answer\"; the model never supplies one")
+            need(v is None or str(b.get("quote") or "").strip(), f"forecast.baselines.{key}: an input with a value needs the user's own words in quote")
+            numbers({k: x for k, x in b.items() if k != "value"}, key)
+            continue
+        numbers(b, key)
+        if op == "field":
+            q_of(key, b, ["static", "trailing"])
+            need(b.get("value"), f"forecast.baselines.{key}: value (the column) is required")
+        elif op == "series":
+            q = q_of(key, b, ["trailing"])
+            need(q.get("months", 24) == 24, f"forecast.baselines.{key}: a series reads a 24-month trailing query")
+            need(b.get("date") and b.get("value"), f"forecast.baselines.{key}: date and value (columns) are required")
+            need(not q or b.get("date") in ((q.get("input") or {}).get("fields") or []), f"forecast.baselines.{key}: date '{b.get('date')}' is not a field of its query")
+        elif op == "ratio":
+            for k in ("numerator", "denominator"):
+                need((bl.get(b.get(k)) or {}).get("op") in ("series", "field"), f"forecast.baselines.{key}.{k} must name a series or field baseline")
+            suggest(key, b)
+        elif op == "cohort_curve":
+            q = q_of(key, b, ["cohort"])
+            sizes = bl.get(b.get("sizes")) or {}
+            need(sizes.get("op") == "series", f"forecast.baselines.{key}.sizes must name the new-customers series baseline")
+            base = lambda f: str(f or "").split("__")[-1]
+            need(not q or not sizes or base(q.get("acquired_field")) == base(sizes.get("date")),
+                 f"forecast.baselines.{key}: the cohort query's acquired_field '{q.get('acquired_field')}' and the new-customers date '{sizes.get('date')}' must be the same acquisition field")
+            suggest(key, b)
+        elif op == "seasonality":
+            need((bl.get(b.get("of")) or {}).get("op") == "series", f"forecast.baselines.{key}.of must name a series baseline")
+    need((bl.get("revenue") or {}).get("op") == "series", "forecast.baselines.revenue: a revenue series is required")
+    for lv in fc.get("levers") or []:
+        need(lv in LEVERS, f"forecast.levers: unknown lever '{lv}' (one of {sorted(LEVERS)})")
+    for qid in forecast_queries(cfg):
+        for f in ((queries.get(qid) or {}).get("input") or {}).get("filters") or []:
+            vals = f.get("value")
+            vals = list(vals.values()) if isinstance(vals, dict) else (vals if isinstance(vals, list) else [vals])
+            bad = [v for v in vals if (isinstance(v, (int, float)) and not isinstance(v, bool)) or (isinstance(v, str) and DATE_LITERAL.match(v))]
+            need(not bad, f"queries.{qid}: a filter with a number or date literal ({bad}); the page sets the window, filters keep only business rules")
+    return errs
+
+
+def warnings(cfg):
+    """Prose that quotes a figure: the page's numbers come from OWOX, the text should not repeat them."""
+    texts = [("lede", cfg.get("lede"))]
+    for p in cfg.get("pages") or []:
+        for c in p.get("components") or []:
+            texts.append((f"component {c.get('title') or c.get('type')}.description", c.get("description")))
+            texts += [(f"component {c.get('title') or c.get('type')}.items", t) for t in c.get("items") or []]
+    texts += [("improvements", x.get("text") if isinstance(x, dict) else x) for x in cfg.get("improvements") or []]
+    return [f"{where}: quotes a figure ('{t}'); let the page show numbers" for where, t in texts if isinstance(t, str) and PROSE_FIGURE.search(t)]
 
 
 def theme_css(theme):
@@ -227,6 +354,8 @@ def main():
         for e in errs:
             print(" -", e)
         sys.exit(1)
+    for w in warnings(cfg):
+        print("warning:", w, file=sys.stderr)
     theme = cfg.get("theme") or {}
     logo = theme.get("logo")
     if logo is not False:
@@ -252,6 +381,8 @@ def main():
     def n_calls(q):
         if q.get("scope") == "window":
             return 2
+        if q.get("scope") in ("trailing", "cohort"):
+            return 1
         if q.get("scope") == "range" and any(b.get("unit") == "DAY" for b in (q.get("input") or {}).get("date_buckets") or []):
             return 3  # one call per calendar year: two years back plus this year
         return 1
@@ -290,6 +421,8 @@ def main():
                     metric_q(b["metric"], out)
         if cfg.get("primary_metric"):
             metric_q(cfg["primary_metric"], out)
+        if any(c.get("type") in FORECAST_TYPES for c in pg.get("components") or []):
+            out |= forecast_queries(cfg)
         return out
     seen, per_tab = set(), {}
     if cfg.get("anchor"):
