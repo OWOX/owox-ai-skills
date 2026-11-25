@@ -429,8 +429,126 @@ __THEME_CSS__
         return v + preWin / 12 * ratio * s[cal(k)];
       });
     }
+    // ---- baselines from OWOX rows ----
+    const isNum = (v) => typeof v === "number" && isFinite(v);
+    const fmtKey = (k) => new Date(Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+    const aggCol = (q) => { const a = ((q.input || {}).aggregations || [])[0]; return a ? `${a.field} | ${a.function}` : null; };
+    function monthlyOf(rows, date, value) {
+      const by = {};
+      (rows || []).forEach((r) => { const d = toDay(r[date]); const v = Number(r[value]); if (d && isFinite(v)) by[d.slice(0, 7)] = (by[d.slice(0, 7)] || 0) + v; });
+      return by;
+    }
+    function fieldValue(t, col) {
+      if (!t) return null;
+      const r = (t.rows || [])[0]; if (r && r[col] != null && isFinite(Number(r[col]))) return Number(r[col]);
+      const tot = (t.totals || {})[col]; return tot != null && isFinite(Number(tot)) ? Number(tot) : null;
+    }
+    // Every baseline the config declares, computed from the rows OWOX returned, plus the model's inputs.
+    function evaluate(fc, queries, tables, ctx) {
+      const bl = fc.baselines || {};
+      const need = new Set(Object.values(bl).map((b) => b.query).filter(Boolean));
+      (fc.source_dates || []).forEach((s) => need.add(s.query));
+      const missing = [...need].filter((q) => !tables[q]);
+      if (missing.length) return { missing };
+      const notes = [];
+      const win = forecastWindow(ctx.anchor, ctx.sourceMaxDays);
+      const H = horizon(ctx.anchor, fc.horizon || "next_12_months");
+      const span = `${fmtKey(win.from)} – ${fmtKey(win.to)}`;
+      const sumWin = (by) => win.months.reduce((a, k) => a + (by[k] || 0), 0);
+      const out = {}, series = {};
+      const put = (key, o) => { out[key] = Object.assign({ key, label: bl[key].label, window: [win.from, win.to], suggest: bl[key].suggest || null, inputs: [] }, o); };
+      // Facts first: series and fields.
+      Object.entries(bl).forEach(([key, b]) => {
+        if (b.op === "series") {
+          series[key] = monthlyOf(tables[b.query].rows, b.date, b.value);
+          put(key, { kind: "Fact", value: sumWin(series[key]), formula: `Σ ${b.value} by ${b.date}, ${span}` });
+        } else if (b.op === "field") {
+          let v = fieldValue(tables[b.query], b.value);
+          put(key, { kind: "Fact", value: v, formula: `${b.value}, ${span}` });
+        } else if (b.op === "input") {
+          put(key, { kind: "Your input", value: isNum(b.value) ? b.value : null, formula: b.quote ? `“${b.quote}”` : "left out", window: null });
+        }
+      });
+      Object.entries(bl).forEach(([key, b]) => {
+        if (b.op === "ratio") {
+          const n = out[b.numerator], d = out[b.denominator];
+          const v = n && d && isNum(n.value) && isNum(d.value) && d.value > 0 ? n.value / d.value : null;
+          const nb = bl[b.numerator], db = bl[b.denominator];
+          put(key, { kind: "Assumption", value: v, formula: `${nb.value} ÷ ${db.value}, ${span}`, inputs: [{ label: n ? n.label : b.numerator, value: n && n.value }, { label: d ? d.label : b.denominator, value: d && d.value }] });
+          if (v == null) notes.push(`${bl[key].label} could not be computed: ${d ? d.label : b.denominator} is zero or missing over ${span}. Without a CAC the page cannot forecast new customers.`);
+        } else if (b.op === "seasonality") {
+          const s = seasonality(series[b.of] || {}, win.to);
+          if (!s) notes.push(`${bl[key].label}: fewer than 24 months of ${bl[b.of] ? bl[b.of].label : b.of} up to ${fmtKey(win.to)}, so every month is weighted the same.`);
+          put(key, { kind: "Assumption", value: s, flat: !s, formula: `each calendar month ÷ its centred 12-month moving average, 24 months to ${fmtKey(win.to)}` });
+        }
+      });
+      // The revenue curve: cohorts when the acquisition date holds, else first order value plus repeat revenue.
+      const anchorMonth = ctx.anchor.slice(0, 7);
+      const sOf = (of) => { const k = Object.keys(bl).find((x) => bl[x].op === "seasonality" && bl[x].of === of); return k && out[k].value ? out[k].value : Array(12).fill(1); };
+      const sRev = sOf("revenue"), sSpend = sOf("spend");
+      const revBy = series.revenue || {};
+      const ck = Object.keys(bl).find((x) => bl[x].op === "cohort_curve");
+      let mode = "no_curve", curve = null, baseRev = null;
+      if (ck) {
+        const b = bl[ck], q = queries[b.query] || {}, t = tables[b.query];
+        const matrix = cohortMatrix(t.rows, q.acquired_field, q.ordered_field, aggCol(q));
+        const sizes = {}; const sz = series[b.sizes] || {};
+        Object.keys(sz).forEach((k) => { if (sz[k] > 0 && k <= anchorMonth) sizes[k] = sz[k]; });
+        if (t.truncated) notes.push("The cohort query hit OWOX's 1,000 rows limit, so the revenue curve would be cut: the page uses first order value and repeat revenue instead.");
+        else if (!acquisitionValid(matrix)) notes.push(`The acquisition date (${q.acquired_field}) has orders before it, so it is not when customers were won: the page uses first order value and repeat revenue instead.`);
+        else {
+          mode = "cohort_curve";
+          const c = cohortCurve(matrix, sizes, win.to);
+          curve = c.curve;
+          const shown = []; for (let k = 0; k <= Math.min(c.measured, 5); k++) shown.push({ label: `Month ${k}`, value: c.curve(k) });
+          shown.push({ label: `Month ${c.measured + 1}+`, value: c.tail });
+          put(ck, { kind: "Assumption", value: c.curve(0), measured: c.measured, formula: `Σ ${aggCol(q)} by ${q.acquired_field} × ${q.ordered_field} ÷ new customers, development factors over the cohorts seen at both ages`, inputs: shown });
+          baseRev = existingRevenue({ mode, matrix, sizes, curve, horizonKeys: H, windowMonths: win.months, prevMonths: win.months.map((k) => addMonths(k, -12)), totalByMonth: revBy, seasonRevenue: sRev, anchor: ctx.anchor });
+        }
+      }
+      if (mode === "no_curve") {
+        const aov = out.aov && out.aov.value, base = out.customer_base && out.customer_base.value;
+        const winRev = out.revenue ? out.revenue.value : 0, winNew = out.new_customers ? out.new_customers.value : 0;
+        if (!isNum(aov)) notes.push("No average order value baseline: the page cannot price a new customer's first month.");
+        else {
+          const nc = isNum(base) ? noCurve({ windowRevenue: winRev, windowNew: winNew, aov, customerBase: base }) : { error: true };
+          const repeat = nc.error ? 0 : Math.max(0, nc.repeat);
+          if (nc.error) notes.push("No customer base baseline (customers with an order in the window): new customers are counted for their first month only.");
+          curve = (k) => (k === 0 ? aov : repeat);
+          if (ck) put(ck, { kind: "Assumption", value: aov, formula: `first month = ${bl.aov.value}; later months = (window revenue − new customers × ${bl.aov.value}) ÷ 12 ÷ customer base`, inputs: [{ label: "Month 0", value: aov }, { label: "Month 1+", value: repeat }] });
+          baseRev = existingRevenue({ mode, repeatTotal: Math.max(0, winRev - winNew * aov), horizonKeys: H, seasonRevenue: sRev });
+        }
+      }
+      const spendWin = out.spend ? out.spend.value : 0;
+      let margin = out.margin ? out.margin.value : null;
+      if (isNum(margin) && margin > 1) margin /= 100;
+      const cac = out.cac ? out.cac.value : null;
+      const b = { budget: out.spend ? spendWin * H.length / 12 : 0, cac: out.spend ? cac : 1, curve, seasonSpend: sSpend, startCal: +H[0].slice(5, 7) - 1, baseRev, margin, fixed: out.fixed_costs ? out.fixed_costs.value : null };
+      if (!out.spend) notes.push("No ad spend baseline: the forecast covers existing customers only, with no budget or CAC.");
+      const history = {};
+      monthSpan(addMonths(win.to, -11), anchorMonth).forEach((k) => { history[k] = { revenue: revBy[k], spend: (series.spend || {})[k], newCustomers: (series.new_customers || {})[k] }; });
+      return { mode, baselines: out, notes, model: { b, H: H.length, horizonKeys: H, windowKeys: win.months, history, anchorMonth, window: win } };
+    }
+    // Lever ranges are the engine's own: half to double the baseline; margin 0–100%; repeat ×0.5–×2.
+    function leverRange(key, base) {
+      if (key === "margin") return [0, 1];
+      if (key === "repeat") return [0.5, 2];
+      return isNum(base) && base > 0 ? [base / 2, base * 2] : null;
+    }
+    function leverBase(key, b) {
+      return { budget: b.budget, cac: b.cac, first_month_revenue: b.curve ? b.curve(0) : null, repeat: 1, margin: b.margin, fixed_costs: b.fixed }[key];
+    }
+    function restoreLevers(saved, b, keys) {
+      const out = {};
+      (keys || []).forEach((k) => {
+        const base = leverBase(k, b), r = leverRange(k, base), v = saved && saved[k];
+        if (!r && base == null) return;
+        out[k] = isNum(v) && r ? Math.min(r[1], Math.max(r[0], v)) : base;
+      });
+      return out;
+    }
     return { addMonths, monthSpan, monthsBetween, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel,
-      toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue };
+      toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue, evaluate, leverRange, leverBase, restoreLevers };
   })();
   // forecast-core:end
   function toDay(v) {
