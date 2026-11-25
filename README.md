@@ -16,6 +16,7 @@ The plugin connects Claude to OWOX and adds these skills:
 | Skill | What it does |
 |---|---|
 | [`owox-dashboard`](claude/plugins/owox/skills/owox-dashboard/SKILL.md) | Asks up to four questions, reads your project's data model, and builds a live dashboard: scorecards, plan vs fact, trends, breakdowns, top drivers. Every chart exports to Google Sheets. Colleagues open it and refresh it with their own OWOX access. Works on any project, and tells you what to add to the project to get more. |
+| [`owox-forecast`](claude/plugins/owox/skills/owox-forecast/SKILL.md) | Asks up to four questions and builds a live unit-economics forecast: next year's revenue, new customers, CAC, operating profit and peak cash need, with levers to try another budget, CAC or margin. Every starting value is read from your Data Marts or computed from them by a stated rule, and the page marks which. When you are happy with it, offers to add those rules to your Data Marts as calculated fields. |
 
 ### Install
 
