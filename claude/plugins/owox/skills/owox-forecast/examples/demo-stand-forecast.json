@@ -306,7 +306,7 @@
     "op": "field",
     "label": "Completed orders over the window",
     "query": "profit_window",
-    "value": "order_id | COUNT_DISTINCT",
+    "value": "order_id | COUNTUNIQUE",
     "format": "number"
    },
    "aov": {
@@ -367,13 +367,13 @@
      "description": "Move a lever and every number below follows."
     },
     {
-     "type": "forecast_cards",
-     "title": "Next 12 months"
-    },
-    {
      "type": "forecast_chart",
      "title": "Revenue by month",
      "description": "The last 12 full months as recorded, then the forecast: customers you already have and customers the budget buys."
+    },
+    {
+     "type": "forecast_cards",
+     "title": "Next 12 months"
     },
     {
      "type": "forecast_assumptions",
