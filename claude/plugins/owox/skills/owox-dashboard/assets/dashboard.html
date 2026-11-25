@@ -455,6 +455,20 @@ __THEME_CSS__
         return v + preWin / 12 * ratio * s[cal(k)];
       });
     }
+    // Out of sample: rebuild the curve from data up to 12 months before endKey, predict the last 12 months'
+    // revenue of the cohorts OWOX counted, and compare with what OWOX recorded. Null under 24 months.
+    function modelFit(matrix, sizes, endKey) {
+      const cs = Object.keys(sizes).filter((c) => c <= endKey);
+      if (cs.filter((c) => c > addMonths(endKey, -24)).length < 24) return null;
+      const cut = addMonths(endKey, -12);
+      const tm = {}, ts = {};
+      cs.filter((c) => c <= cut).forEach((c) => { ts[c] = sizes[c]; tm[c] = {}; Object.entries(matrix[c] || {}).forEach(([o, v]) => { if (o <= cut) tm[c][o] = v; }); });
+      const { curve } = cohortCurve(tm, ts, cut);
+      const last = monthSpan(addMonths(cut, 1), endKey);
+      let predicted = 0, actual = 0;
+      cs.forEach((c) => last.forEach((k) => { if (k < c) return; predicted += sizes[c] * curve(monthsBetween(c, k)); actual += ((matrix[c] || {})[k]) || 0; }));
+      return actual > 0 ? { predicted, actual, gapPct: (predicted - actual) / actual, from: last[0], to: endKey } : null;
+    }
     // ---- baselines from OWOX rows ----
     const isNum = (v) => typeof v === "number" && isFinite(v);
     const fmtKey = (k) => new Date(Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
@@ -514,7 +528,7 @@ __THEME_CSS__
       const sRev = sOf("revenue"), sSpend = sOf("spend");
       const revBy = series.revenue || {};
       const ck = Object.keys(bl).find((x) => bl[x].op === "cohort_curve");
-      let mode = "no_curve", curve = null, baseRev = null;
+      let mode = "no_curve", curve = null, baseRev = null, fit = null;
       if (ck) {
         const b = bl[ck], q = queries[b.query] || {}, t = tables[b.query];
         const matrix = cohortMatrix(t.rows, q.acquired_field, q.ordered_field, aggCol(q));
@@ -529,6 +543,7 @@ __THEME_CSS__
           const shown = []; for (let k = 0; k <= Math.min(c.measured, 5); k++) shown.push({ label: `Month ${k}`, value: c.curve(k) });
           shown.push({ label: `Month ${c.measured + 1}+`, value: c.tail });
           put(ck, { kind: "Assumption", value: c.curve(0), measured: c.measured, formula: `Σ ${aggCol(q)} by ${q.acquired_field} × ${q.ordered_field} ÷ new customers, development factors over the cohorts seen at both ages`, inputs: shown });
+          fit = modelFit(matrix, sizes, win.to);
           baseRev = existingRevenue({ mode, matrix, sizes, curve, horizonKeys: H, windowMonths: win.months, prevMonths: win.months.map((k) => addMonths(k, -12)), totalByMonth: revBy, seasonRevenue: sRev, anchor: ctx.anchor });
         }
       }
@@ -553,7 +568,7 @@ __THEME_CSS__
       if (!out.spend) notes.push("No ad spend baseline: the forecast covers existing customers only, with no budget or CAC.");
       const history = {};
       monthSpan(addMonths(win.to, -11), anchorMonth).forEach((k) => { history[k] = { revenue: revBy[k], spend: (series.spend || {})[k], newCustomers: (series.new_customers || {})[k] }; });
-      return { mode, baselines: out, notes, model: { b, H: H.length, horizonKeys: H, windowKeys: win.months, history, anchorMonth, window: win } };
+      return { mode, baselines: out, notes, fit, model: { b, H: H.length, horizonKeys: H, windowKeys: win.months, history, anchorMonth, window: win } };
     }
     // Lever ranges are the engine's own: half to double the baseline; margin 0–100%; repeat ×0.5–×2.
     function leverRange(key, base) {
@@ -574,7 +589,7 @@ __THEME_CSS__
       return out;
     }
     return { addMonths, monthSpan, monthsBetween, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel,
-      toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue, evaluate, leverRange, leverBase, restoreLevers };
+      toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue, modelFit, evaluate, leverRange, leverBase, restoreLevers };
   })();
   // forecast-core:end
   function toDay(v) {
@@ -1828,6 +1843,7 @@ __THEME_CSS__
       tb.append(row);
     });
     t.append(tb); wrap.append(t); host.append(wrap);
+    if (st.fit) host.append(el("p", "desc", `Model fit: the curve built from data to ${fmtMonthKey(FC.addMonths(st.fit.from, -1))} predicts ${fmt(st.fit.predicted, "currency", true)} for ${fmtMonthKey(st.fit.from)} – ${fmtMonthKey(st.fit.to)} from the customers OWOX counted; OWOX recorded ${fmt(st.fit.actual, "currency", true)} (${fmtPct(st.fit.gapPct)}).`));
     const notes = [`Mode: ${st.mode === "cohort_curve" ? "revenue per new customer follows the measured cohort curve" : "first order value, then the window's repeat revenue per customer (no valid acquisition date)"}.`, ...st.notes];
     const ol = el("ol", "notes"); notes.forEach((n) => ol.append(el("li", null, n))); host.append(el("p", "mono-label data__h", "How the forecast reads them"), ol);
   }
