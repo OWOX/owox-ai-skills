@@ -209,6 +209,32 @@ details.about[open] > summary::before, details.log[open] > summary::before { con
 .call__line { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
 pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1px solid var(--border-quiet); font: 400 11.5px/1.5 var(--font-mono); color: var(--text-secondary); overflow-x: auto; white-space: pre; }
 .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+/* Forecast */
+.help__btn--assume { color: var(--warn); border-color: var(--warn); font-weight: 700; }
+.help__pop a { color: var(--text-link); }
+.levers { display: grid; gap: 16px; }
+.lever { display: grid; grid-template-columns: minmax(170px, 1.2fr) minmax(0, 2fr) minmax(96px, auto); gap: 4px 18px; align-items: center; }
+.lever__name { display: inline-flex; gap: 8px; align-items: center; font: 500 14px/1.35 var(--font-body); margin: 0; }
+.lever__base { margin: 0; font: 400 11.5px/1.4 var(--font-mono); color: var(--text-muted); grid-column: 1; }
+.lever__track { position: relative; grid-row: 1 / span 2; grid-column: 2; display: flex; align-items: center; }
+.lever input[type=range] { width: 100%; margin: 0; accent-color: var(--metric); cursor: pointer; }
+.lever__mark { position: absolute; top: 50%; width: 2px; height: 18px; margin-top: -9px; background: var(--plan); opacity: .55; pointer-events: none; }
+.lever__val { grid-row: 1 / span 2; grid-column: 3; font: 700 14px var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.levers__bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+@media (max-width: 680px) { .lever { grid-template-columns: minmax(0, 1fr) auto; } .lever__track { grid-row: 3; grid-column: 1 / -1; } .lever__val { grid-row: 1; grid-column: 2; } }
+.fcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 14px; }
+.card--fc { border-top-color: var(--metric); }
+.switch { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius); margin: 0 0 8px; }
+.switch button { background: transparent; border: 0; color: var(--text-secondary); font: 400 11.5px/1 var(--font-mono); padding: 7px 10px; cursor: pointer; }
+.switch button[aria-pressed="true"] { background: var(--bg-nested); color: var(--text-primary); }
+.legend i.base { background: color-mix(in srgb, var(--metric) 45%, transparent); }
+.legend i.new { background: var(--metric-2); }
+.legend i.hatch { background: repeating-linear-gradient(45deg, var(--metric) 0 2px, transparent 2px 5px); }
+.legend i.budget { height: 0; border-top: 2px dashed var(--plan); background: none; }
+.legend i.profit { height: 0; border-top: 2px solid var(--ok); background: none; }
+td.fc-wrap { min-width: 150px; max-width: 260px; overflow-wrap: anywhere; }
+td.fc-formula { white-space: normal; min-width: 220px; text-align: left; font: 400 12px/1.5 var(--font-mono); color: var(--text-secondary); }
+td.fc-wrap { white-space: normal; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .block, .help__pop { transition: none; } }
 __THEME_CSS__
 </style>
@@ -479,7 +505,7 @@ __THEME_CSS__
         } else if (b.op === "seasonality") {
           const s = seasonality(series[b.of] || {}, win.to);
           if (!s) notes.push(`${bl[key].label}: fewer than 24 months of ${bl[b.of] ? bl[b.of].label : b.of} up to ${fmtKey(win.to)}, so every month is weighted the same.`);
-          put(key, { kind: "Assumption", value: s, flat: !s, formula: `each calendar month ÷ its centred 12-month moving average, 24 months to ${fmtKey(win.to)}` });
+          put(key, { kind: "Assumption", value: s, flat: !s, window: [addMonths(win.to, -23), win.to], formula: `each calendar month ÷ its centred 12-month moving average, 24 months to ${fmtKey(win.to)}` });
         }
       });
       // The revenue curve: cohorts when the acquisition date holds, else first order value plus repeat revenue.
@@ -678,6 +704,8 @@ __THEME_CSS__
   // ---------- forecast: its queries, window and baselines ----------
   const FCFG = CFG.forecast || null;
   const FC_TYPES = new Set(["forecast_levers", "forecast_cards", "forecast_chart", "forecast_assumptions"]);
+  // A page of forecast blocks only has no period: the period switch and its comparison are hidden.
+  const FC_ONLY = !!FCFG && !Object.keys(METRICS).length && PAGES.every((p) => (p.components || []).every((c) => FC_TYPES.has(c.type) || c.type === "data" || c.type === "notes"));
   const fcQueryIds = () => { if (!FCFG) return []; const ids = new Set(Object.values(FCFG.baselines || {}).map((b) => b.query).filter(Boolean)); (FCFG.source_dates || []).forEach((x) => ids.add(x.query)); return [...ids]; };
   // Each source's last complete day (a day from today on is still being written); undefined while loading.
   function fcSourceDays() {
@@ -702,6 +730,17 @@ __THEME_CSS__
     if (q.scope === "trailing") { const m = q.months || 24; return withDateFilter(base, q.date_field, [FC.addMonths(w.to, -(m - 1)) + "-01", m === 12 ? lastDayOf(w.to) : anchor]); }
     const r = [FC.addMonths(anchor.slice(0, 7), -35) + "-01", anchor];
     return withDateFilter(withDateFilter(base, q.acquired_field, r), q.ordered_field, r);
+  }
+  // Source of a forecast block: every Data Mart its baselines read, with the fields.
+  function fcSources() {
+    const by = new Map();
+    fcQueryIds().forEach((qid) => {
+      const q = QUERIES[qid]; if (!q || !q.data_mart_id) return;
+      const s0 = by.get(q.data_mart_id) || { role: "Fact", data_mart_id: q.data_mart_id, title: String(q.label || q.data_mart_id).split(" · ").pop(), fields: [] };
+      ((q.input || {}).fields || []).forEach((f) => { if (!s0.fields.some((x) => x.name === f)) s0.fields.push({ name: f }); });
+      by.set(q.data_mart_id, s0);
+    });
+    return [...by.values()];
   }
   let fcCache = null;
   function fcState() {
@@ -1038,7 +1077,7 @@ __THEME_CSS__
     const sm = el("summary"); sm.append(document.createTextNode("Source")); d.append(sm);
     if (description) d.append(el("p", "src__text", description));
     // What each kind of number on the block is, said once, inside Source.
-    const KIND = { "Fact": "the value OWOX returned from the Data Mart", "Estimate": "a forecast the page projects from OWOX values, such as month to date ÷ days elapsed × days in the month", "AI calc": "arithmetic done in the page on OWOX values: sums over days, changes, shares", "Hypothesis": "an explanation to check, not a measured number" };
+    const KIND = { "Assumption": "computed in the page from OWOX values by a fixed rule; a calculated field would make it a Fact", "Your input": "a value you gave; OWOX does not hold it", "Fact": "the value OWOX returned from the Data Mart", "Estimate": "a forecast the page projects from OWOX values, such as month to date ÷ days elapsed × days in the month", "AI calc": "arithmetic done in the page on OWOX values: sums over days, changes, shares", "Hypothesis": "an explanation to check, not a measured number" };
     if (tags && tags.length) { const ul = el("ul", "src__kinds"); tags.forEach((t) => { const li = el("li"); li.append(el("span", "tag", t), document.createTextNode(KIND[t] || "")); ul.append(li); }); d.append(ul); }
     const grid = el("div", "src__grid");
     (sources || []).forEach((s) => {
@@ -1524,6 +1563,17 @@ __THEME_CSS__
 
   // ---------- summary (templated from the same numbers) ----------
   function renderSummary() {
+    if (FCFG) {
+      const box = $("summary"); const run = fcRun();
+      if (!run.res || run.res.error) { box.hidden = true; return; }
+      const t = run.res.totals, p = el("p"), b = (v) => el("b", null, v);
+      p.append(document.createTextNode(`Over ${horizonLabel(run.st)} the model expects `), b(fmt(t.revenue, "currency", true)), document.createTextNode(" revenue"));
+      if (FCFG.baselines.spend) p.append(document.createTextNode(", "), b(fmt(t.newCustomers, "number", true)), document.createTextNode(" new customers at "), b(fmt(t.cac, "currency")), document.createTextNode(" each"));
+      p.append(document.createTextNode(`, and ${t.contributionOnly ? "a contribution" : "operating profit"} of `), b(fmt(t.operatingProfit, "currency", true)));
+      if (t.peakCash > 0) p.append(document.createTextNode("; cash bottoms out at "), b("−" + fmt(t.peakCash, "currency", true)), document.createTextNode(` in ${fmtMonthKey(run.st.model.horizonKeys[t.peakIndex])}`));
+      p.append(document.createTextNode(". Every figure here is an Estimate."));
+      box.replaceChildren(p); box.hidden = false; return;
+    }
     const box = $("summary"); const ids = CFG.summary_metrics || [];
     if (!ids.length || !anchor) { box.hidden = true; return; }
     const p = el("p");
@@ -1554,7 +1604,7 @@ __THEME_CSS__
     PAGES.forEach((p) => {
       const marts = new Map();
       const add = (list) => (list || []).forEach((x) => x.data_mart_id && marts.set(x.data_mart_id, x.title || x.data_mart_id));
-      (p.components || []).forEach((k) => { add(k.sources); if (k.metric && METRICS[k.metric]) add(METRICS[k.metric].sources); (k.metrics || []).forEach((mid) => METRICS[mid] && add(METRICS[mid].sources)); if (k.from) [].concat(k.from).forEach((b) => COMPONENTS[b] && add(COMPONENTS[b].sources)); });
+      (p.components || []).forEach((k) => { add(k.sources || (FC_TYPES.has(k.type) ? fcSources() : null)); if (k.metric && METRICS[k.metric]) add(METRICS[k.metric].sources); (k.metrics || []).forEach((mid) => METRICS[mid] && add(METRICS[mid].sources)); if (k.from) [].concat(k.from).forEach((b) => COMPONENTS[b] && add(COMPONENTS[b].sources)); });
       if (!marts.size) return;
       const tr = el("tr"); tr.append(el("td", null, p.title)); const td = el("td");
       [...marts].forEach(([id, title], i) => { if (i) td.append(document.createTextNode(" · ")); const a = el("a", null, title); a.href = martUrl(id); a.target = "_blank"; a.rel = "noopener"; td.append(a); });
@@ -1584,9 +1634,220 @@ __THEME_CSS__
     return art;
   }
 
+  // ---------- forecast blocks ----------
+  const FC_FORMAT = { revenue: "currency", spend: "currency", cac: "currency", aov: "currency", fixed_costs: "currency", budget: "currency", first_month_revenue: "currency", new_customers: "number", customer_base: "number", margin: "percent", repeat: "ratio" };
+  const fcFmt = (key, v, compact) => {
+    const b = FCFG && FCFG.baselines[key];
+    if (b && b.op === "cohort_curve") return fmt(v, "currency", compact);
+    if (b && b.op === "seasonality") return Array.isArray(v) ? `×${nf({ maximumFractionDigits: 2 }).format(Math.min(...v))}–×${nf({ maximumFractionDigits: 2 }).format(Math.max(...v))}` : "flat";
+    if (key === "repeat") return isNum(v) ? `×${nf({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)}` : "—";
+    if (b && b.op === "input" && v == null) return "left out";
+    return fmt(v, FC_FORMAT[key] || "number", compact);
+  };
+  const fmtMonthKey = (k) => `${fmtMonth(k + "-01")} ${k.slice(0, 4)}`;
+  // The "!" next to every Assumption: how the page computed it, from which OWOX values, and the calculated
+  // field that would make it a Fact.
+  function assume(bl) {
+    const h = el("span", "help");
+    const btn = el("button", "help__btn help__btn--assume", "!"); btn.type = "button"; btn.setAttribute("aria-label", "How this assumption is computed");
+    const pop = el("span", "help__pop"); pop.setAttribute("role", "tooltip");
+    pop.append(el("p", null, `${bl.label}: computed in this page from OWOX values, not read from a Data Mart.`));
+    if (bl.formula) pop.append(el("p", null, bl.formula));
+    if ((bl.inputs || []).length) pop.append(el("p", null, bl.inputs.map((x) => `${x.label} ${isNum(x.value) ? fmt(x.value, Math.abs(x.value) < 1000 && !Number.isInteger(x.value) ? "decimal" : "number") : "—"}`).join(" · ")));
+    if (bl.suggest) {
+      const p = el("p", null, `Add “${bl.suggest.name}” as a calculated field (${bl.suggest.formula}) and the page reads it as a Fact. `);
+      if (bl.suggest.data_mart_id) { const a = el("a", null, "Open the Data Mart ↗"); a.href = martUrl(bl.suggest.data_mart_id); a.target = "_blank"; a.rel = "noopener"; p.append(a); }
+      pop.append(p);
+    }
+    h.append(btn, pop); return h;
+  }
+  const kindMark = (bl) => bl && bl.kind === "Assumption" ? assume(bl) : null;
+  // Lever positions: per viewer, in this browser only; the page works without storage.
+  const LEVER_KEY = `owox-forecast:${PROJECT.id}:${CFG.title}:levers`;
+  let leverSaved = (() => { try { return JSON.parse(localStorage.getItem(LEVER_KEY) || "null") || {}; } catch (_) { return {}; } })();
+  const saveLevers = () => { try { localStorage.setItem(LEVER_KEY, JSON.stringify(leverSaved)); } catch (_) { /* blocked: positions last until reload */ } };
+  function leverKeys(st) {
+    const b = st.model.b, have = (k) => !!(FCFG.baselines || {})[k];
+    return (FCFG.levers || []).filter((k) => {
+      if ((k === "budget" || k === "cac") && !have("spend")) return false;
+      if (k === "fixed_costs") return isNum(b.fixed) && b.fixed > 0;
+      return FC.leverBase(k, b) != null;
+    });
+  }
+  function fcRun() {
+    const st = fcState(); if (!st || st.missing) return { st };
+    const lv = FC.restoreLevers(leverSaved, st.model.b, leverKeys(st));
+    return { st, lv, res: FC.forecastModel(st.model.b, lv, st.model.H) };
+  }
+  const horizonLabel = (st) => (FCFG.horizon === "through_next_december" ? `through December ${st.model.horizonKeys[st.model.H - 1].slice(0, 4)}` : `the next ${st.model.H} months`);
+  function fcProblem(host, run) {
+    if (!run.st || run.st.missing) { host.append(stateBox(fcQueryIds())); return true; }
+    if (run.res.error) {
+      const why = run.res.error === "cac" ? "No blended CAC: the window has no new customers or no spend, so the page cannot forecast new customers." : "No gross margin: answer the margin question, or add a margin field to the Data Mart.";
+      host.append(el("p", "state state--warn", why)); return true;
+    }
+    return false;
+  }
+  function rerenderForecast(skip) {
+    const p = PAGES[activePage]; if (!p) return;
+    (p.components || []).forEach((c) => { if (!FC_TYPES.has(c.type) || c.id === skip) return; const old = $(`c-${c.id}`); if (old) { try { old.replaceWith(renderComponent(c)); } catch (_) {} } });
+    renderSummary();
+  }
+  function leverMeta(k, st) {
+    const bl = st.baselines;
+    const curveKey = Object.keys(FCFG.baselines).find((x) => FCFG.baselines[x].op === "cohort_curve");
+    return {
+      budget: { name: `Ad budget, ${horizonLabel(st)}`, src: bl.spend, base: "last 12 months, pro-rated" },
+      cac: { name: "Blended CAC", src: bl.cac, base: "last 12 months" },
+      first_month_revenue: { name: "First-month revenue per new customer", src: curveKey ? bl[curveKey] : bl.aov, base: "now" },
+      repeat: { name: "Repeat revenue", src: curveKey ? bl[curveKey] : null, base: "the curve as measured" },
+      margin: { name: "Gross margin", src: bl.margin, base: "now" },
+      fixed_costs: { name: "Fixed costs per month", src: bl.fixed_costs, base: "your input" },
+    }[k];
+  }
+  function leversBlock(host, c) {
+    const run = fcRun(); if (fcProblem(host, run)) return;
+    const { st, lv } = run; const b = st.model.b;
+    const box = el("div", "levers");
+    leverKeys(st).forEach((k) => {
+      const base = FC.leverBase(k, b), r = FC.leverRange(k, base); if (!r) return;
+      const meta = leverMeta(k, st);
+      const row = el("div", "lever");
+      const name = el("p", "lever__name", meta.name); const mk = kindMark(meta.src); if (mk) name.append(mk); row.append(name);
+      const kind = meta.src ? meta.src.kind : "Assumption";
+      const baseLine = el("p", "lever__base"); baseLine.append(el("span", "tag", kind), document.createTextNode(`${fcFmt(k, base, true)} ${meta.base}`)); row.append(baseLine);
+      const track = el("div", "lever__track");
+      const input = el("input"); input.type = "range"; input.min = r[0]; input.max = r[1]; input.step = (r[1] - r[0]) / 200; input.value = lv[k];
+      input.setAttribute("aria-label", meta.name);
+      const mark = el("span", "lever__mark"); mark.style.left = `calc(${((base - r[0]) / (r[1] - r[0])) * 100}% - 1px)`;
+      track.append(input, mark); row.append(track);
+      const val = el("span", "lever__val", fcFmt(k, lv[k], true)); row.append(val);
+      input.addEventListener("input", () => { leverSaved[k] = +input.value; val.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
+      box.append(row);
+    });
+    const bar = el("div", "levers__bar");
+    bar.append(el("p", "desc", "The marker is the baseline. Each lever moves in a straight line from the baseline in the first month to where you set it in the last. Positions stay in this browser."));
+    const reset = el("button", "btn btn--ghost btn--sm", "Reset"); reset.type = "button";
+    reset.addEventListener("click", () => { leverSaved = {}; saveLevers(); renderAll(); });
+    bar.append(reset);
+    host.append(box, bar);
+  }
+  function fcCard(title, value, fmtKey, lines, mark) {
+    const card = el("article", "card card--fc");
+    const row = el("div", "card__row"); row.append(el("span", "tag", "Estimate")); card.append(row);
+    const name = el("h2", "card__name", title); if (mark) name.append(mark); card.append(name);
+    card.append(el("p", "card__fact", value));
+    const ul = el("ul", "card__lines");
+    lines.filter(Boolean).forEach(([k, v, m]) => { const li = el("li"); li.append(el("em", null, k + " "), document.createTextNode(v)); if (m) li.append(document.createTextNode(" "), m); ul.append(li); });
+    if (ul.childNodes.length) card.append(ul);
+    return card;
+  }
+  function cardsBlock(host) {
+    const run = fcRun(); if (fcProblem(host, run)) return;
+    const { st, res } = run; const t = res.totals, bl = st.baselines;
+    const wrap = el("div", "fcards");
+    const last = (key, f) => bl[key] && isNum(bl[key].value) ? ["Last 12 months", fcFmt(key, bl[key].value, true), kindMark(bl[key])] : null;
+    wrap.append(fcCard("Revenue", fmt(t.revenue, "currency", true), "revenue", [last("revenue")]));
+    if (bl.spend) {
+      wrap.append(fcCard("New customers", fmt(t.newCustomers, "number", true), "new_customers", [last("new_customers")]));
+      wrap.append(fcCard("Blended CAC", fmt(t.cac, "currency"), "cac", [last("cac")], kindMark(bl.cac)));
+    }
+    wrap.append(fcCard(t.contributionOnly ? "Contribution" : "Operating profit", fmt(t.operatingProfit, "currency", true), null, [t.contributionOnly ? ["Before fixed costs", "you left them out"] : null]));
+    wrap.append(fcCard("Peak cash need", t.peakCash > 0 ? fmt(t.peakCash, "currency", true) : fmt(0, "currency"), null, [t.peakCash > 0 ? ["Lowest in", fmtMonthKey(st.model.horizonKeys[t.peakIndex])] : ["Cash", "stays above zero"]]));
+    host.append(wrap);
+  }
+  const fcMode = {};
+  function forecastChartBlock(host, c) {
+    const run = fcRun(); if (fcProblem(host, run)) return;
+    const { st, res } = run; const m = st.model;
+    const mode = fcMode[c.id] || "profit";
+    const sw = el("div", "switch"); [["profit", res.totals.contributionOnly ? "Contribution" : "Operating profit"], ["cash", "Cumulative cash"]].forEach(([k, t]) => { const bt = el("button", null, t); bt.type = "button"; bt.setAttribute("aria-pressed", String(mode === k)); bt.addEventListener("click", () => { fcMode[c.id] = k; rerenderForecast(); }); sw.append(bt); });
+    const lg = el("div", "legend"); const add = (cls, t) => { const s0 = el("span"); s0.append(el("i", cls), document.createTextNode(t)); lg.append(s0); };
+    add("", "Revenue, Fact"); add("hatch", `${fmtMonth(m.anchorMonth + "-01")} 1–${+anchor.slice(8, 10)}, Fact`); add("base", "Existing customers, Estimate"); add("new", "New customers, Estimate");
+    if (FCFG.baselines.spend) add("budget", "Ad budget"); add("profit", mode === "cash" ? "Cumulative cash" : (res.totals.contributionOnly ? "Contribution" : "Operating profit"));
+    host.append(sw, lg);
+    const hist = Object.keys(m.history).sort().slice(-13);
+    const keys = [...hist, ...m.horizonKeys];
+    const nH = hist.length;
+    const bar = keys.map((k, i) => i < nH ? { fact: m.history[k].revenue } : { base: res.rows[i - nH].baseRev, nw: res.rows[i - nH].newRev });
+    const budget = keys.map((k, i) => i < nH ? m.history[k].spend : res.rows[i - nH].budget);
+    const line = keys.map((k, i) => i < nH ? null : (mode === "cash" ? res.rows[i - nH].cumCash : res.rows[i - nH].operatingProfit));
+    const tops = bar.map((x) => (x.fact != null ? x.fact : (x.base || 0) + (x.nw || 0)));
+    const all = [...tops, ...budget, ...line].filter(isNum);
+    const lo = Math.min(0, ...all), hi = Math.max(0, ...all);
+    const yMax = niceMax(hi * 1.05), yMin = lo < 0 ? -niceMax(-lo * 1.05) : 0;
+    const W = window.innerWidth < 680 ? 520 : chartWidth(c), Hh = window.innerWidth < 680 ? 360 : 290, L = 64, R = 10, T = 12, B = 28;
+    const band = (W - L - R) / keys.length, xc = (i) => L + band * (i + 0.5), yv = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (Hh - T - B);
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${Hh}`, role: "img", "aria-label": `${c.title || "Revenue by month"}: the last ${nH} months and ${horizonLabel(st)}` });
+    const defs = svgEl("defs", {}); const pat = svgEl("pattern", { id: `fc-hatch-${c.id}`, width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+    pat.append(svgEl("rect", { width: 5, height: 5, fill: "var(--bg-surface)" }), svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 5, stroke: "var(--metric)", "stroke-width": 2.5 })); defs.append(pat); svg.append(defs);
+    for (let i = 0; i <= 4; i++) { const v = yMin + (yMax - yMin) * i / 4; svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(v), y2: yv(v), stroke: "var(--border-quiet)" })); const t = svgEl("text", { x: L - 6, y: yv(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v, "currency", true); svg.append(t); }
+    if (yMin < 0) svg.append(svgEl("line", { x1: L, x2: W - R, y1: yv(0), y2: yv(0), stroke: "var(--border-strong)" }));
+    svg.append(svgEl("line", { x1: L + band * nH, x2: L + band * nH, y1: T, y2: Hh - B, stroke: "var(--border-strong)", "stroke-dasharray": "2 3" }));
+    keys.forEach((k, i) => { if (i % 2 && keys.length > 16) return; const t = svgEl("text", { x: xc(i), y: Hh - 9, "text-anchor": "middle" }); t.textContent = fmtMonth(k + "-01"); svg.append(t); });
+    const bw = Math.min(26, band * 0.66);
+    bar.forEach((x, i) => {
+      const k = keys[i];
+      if (x.fact != null) { const partial = k === m.anchorMonth; svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(x.fact), width: bw, height: Math.max(0, yv(0) - yv(x.fact)), fill: partial ? `url(#fc-hatch-${c.id})` : "var(--metric)", stroke: partial ? "var(--metric)" : "none" })); return; }
+      const b0 = x.base || 0, n0 = x.nw || 0;
+      svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(b0), width: bw, height: Math.max(0, yv(0) - yv(b0)), fill: "color-mix(in srgb, var(--metric) 45%, transparent)" }));
+      svg.append(svgEl("rect", { x: xc(i) - bw / 2, y: yv(b0 + n0), width: bw, height: Math.max(0, yv(b0) - yv(b0 + n0)), fill: "var(--metric-2)" }));
+    });
+    const path = (arr, attrs) => svg.append(svgEl("path", Object.assign({ d: arr.map((v, i) => !isNum(v) ? "" : `${i && isNum(arr[i - 1]) ? "L" : "M"}${xc(i).toFixed(1)},${yv(v).toFixed(1)}`).join(""), fill: "none" }, attrs)));
+    if (FCFG.baselines.spend) path(budget, { stroke: "var(--plan)", "stroke-width": 1.5, "stroke-dasharray": "5 4" });
+    path(line, { stroke: "var(--ok)", "stroke-width": 2 });
+    const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: Hh - T - B, fill: "transparent" }); svg.append(hit); host.append(svg);
+    const tip = tooltip(host);
+    hit.addEventListener("pointermove", (e) => {
+      const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(keys.length - 1, Math.floor((px - L) / band)));
+      const k = keys[i], x = bar[i]; const ln = [fmtMonthKey(k)];
+      if (x.fact != null) ln.push(`Revenue ${fmt(x.fact, "currency")} · Fact${k === m.anchorMonth ? " (to " + fmtDay(anchor, { year: undefined }) + ")" : ""}`);
+      else { ln.push(`Existing customers ${fmt(x.base, "currency")} · Estimate`, `New customers ${fmt(x.nw, "currency")} · Estimate`); const row = res.rows[i - nH]; ln.push(`${fmt(row.newCustomers, "number")} new at ${fmt(row.cac, "currency")} · Estimate`); }
+      if (FCFG.baselines.spend && isNum(budget[i])) ln.push(`Ad budget ${fmt(budget[i], "currency")}${x.fact != null ? " · Fact" : " · Estimate"}`);
+      if (isNum(line[i])) ln.push(`${mode === "cash" ? "Cumulative cash" : (res.totals.contributionOnly ? "Contribution" : "Operating profit")} ${fmt(line[i], "currency")}`);
+      tip.show(e, ln);
+    });
+    hit.addEventListener("pointerleave", () => tip.hide());
+  }
+  function assumptionsBlock(host) {
+    const st = fcState(); if (!st || st.missing) { host.append(stateBox(fcQueryIds())); return; }
+    const wrap = el("div", "table-wrap"), t = el("table"), thead = el("thead"), tr = el("tr");
+    ["Baseline", "Value", "Kind", "How it is read", "Window", "Calculated field to add"].forEach((x) => { const th = el("th", null, x); th.style.cursor = "default"; tr.append(th); });
+    thead.append(tr); t.append(thead);
+    const tb = el("tbody");
+    Object.values(st.baselines).forEach((bl) => {
+      const row = el("tr");
+      row.append(el("td", null, bl.label));
+      row.append(el("td", "num", fcFmt(bl.key, bl.value)));
+      const kd = el("td", "fc-wrap"); kd.append(el("span", "tag", bl.kind)); const mk = kindMark(bl); if (mk) kd.append(mk); row.append(kd);
+      const inputs = (bl.inputs || []).map((x) => `${x.label} ${isNum(x.value) ? fmt(x.value, Math.abs(x.value) < 1000 && !Number.isInteger(x.value) ? "decimal" : "number") : "—"}`).join(" · ");
+      row.append(el("td", "fc-formula", bl.formula + (inputs ? ` — ${inputs}` : "")));
+      row.append(el("td", "num", bl.window ? `${fmtMonthKey(bl.window[0])} – ${fmtMonthKey(bl.window[1])}` : "—"));
+      const sg = el("td", "fc-wrap"); if (bl.suggest) { sg.append(document.createTextNode(`${bl.suggest.name} = ${bl.suggest.formula} `)); if (bl.suggest.data_mart_id) { const a = el("a", null, "Open ↗"); a.href = martUrl(bl.suggest.data_mart_id); a.target = "_blank"; a.rel = "noopener"; sg.append(a); } } else sg.textContent = "—";
+      row.append(sg);
+      tb.append(row);
+    });
+    t.append(tb); wrap.append(t); host.append(wrap);
+    const notes = [`Mode: ${st.mode === "cohort_curve" ? "revenue per new customer follows the measured cohort curve" : "first order value, then the window's repeat revenue per customer (no valid acquisition date)"}.`, ...st.notes];
+    const ol = el("ol", "notes"); notes.forEach((n) => ol.append(el("li", null, n))); host.append(el("p", "mono-label data__h", "How the forecast reads them"), ol);
+  }
+  function forecastBlock(c) {
+    const { art, body } = block(c, c.title || "Forecast");
+    if (c.description) body.append(el("p", "desc", c.description));
+    const host = el("div", c.type === "forecast_chart" ? "chart" : null);
+    if (c.type === "forecast_levers") leversBlock(host, c);
+    else if (c.type === "forecast_cards") cardsBlock(host);
+    else if (c.type === "forecast_chart") forecastChartBlock(host, c);
+    else assumptionsBlock(host);
+    body.append(host);
+    footer(body, Object.assign({}, c, { sources: c.sources || fcSources(), tags: c.tags || (c.type === "forecast_assumptions" ? ["Fact", "Assumption", "Your input"] : ["Fact", "Assumption", "Estimate"]) }), fcQueryIds());
+    return art;
+  }
+
   // ---------- page rendering ----------
   let activePage = 0;
   function renderComponent(c) {
+    if (FC_TYPES.has(c.type)) return forecastBlock(c);
     if (c.type === "scorecards") {
       const wrap = el("section", "cards span-6"); wrap.id = `c-${c.id}`; wrap.setAttribute("aria-label", c.title || "Key numbers");
       (c.metrics || []).forEach((id) => METRICS[id] && wrap.append(scorecard(id)));
@@ -1640,7 +1901,8 @@ __THEME_CSS__
     const parts = [];
     if (anchor) parts.push(`Data through ${fmtDay(anchor)}`);
     if (stamps.length) parts.push(stamps[0] === stamps[stamps.length - 1] ? `source tables updated ${fmtStamp(stamps[0])}` : `source tables updated ${fmtStamp(stamps[0])} – ${fmtStamp(stamps[stamps.length - 1])}`);
-    if (anchor) { const w = winOf(period, anchor); parts.push(`${winLabel(w.cur)} vs ${winLabel(w.cmp)}`); }
+    if (anchor && !FC_ONLY) { const w = winOf(period, anchor); parts.push(`${winLabel(w.cur)} vs ${winLabel(w.cmp)}`); }
+    if (FCFG && anchor) { const w = fcWindow(); if (w) parts.push(`baselines read over ${fmtMonth(w.from + "-01")} ${w.from.slice(0, 4)} – ${fmtMonth(w.to + "-01")} ${w.to.slice(0, 4)}`); }
     if (servedFromCopy && copy) parts.unshift(`Your copy from ${fmtStamp(new Date(copy.savedAt).toISOString())}: Refresh data for live numbers`);
     if (parts.length) $("asof").textContent = parts.join(" · ");
     renderProgress();
@@ -1966,13 +2228,13 @@ __THEME_CSS__
     }
   })();
   const sel = $("period");
-  if (!CFG.anchor) sel.hidden = true;
+  if (!CFG.anchor || FC_ONLY) sel.hidden = true;
   periodKeys.forEach((k) => { const o = el("option", null, PERIODS[k].label); o.value = k; if (k === period) o.selected = true; sel.append(o); });
   const cmpSel = $("compare");
   const showCompare = () => {
     const w = winOf(period, anchor || D.today());
     // Always visible next to the period, so viewers find it; year to date only compares with last year.
-    cmpSel.hidden = !CFG.anchor;
+    cmpSel.hidden = !CFG.anchor || FC_ONLY;
     cmpSel.disabled = !hasBoth(period);
     cmpSel.title = hasBoth(period) ? "" : "Year to date always compares with the same dates last year";
     cmpSel.value = w.cmpShort === "last year" ? "last_year" : "previous";
