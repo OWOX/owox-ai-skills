@@ -285,6 +285,87 @@ __THEME_CSS__
     diff(a, b) { return Math.round((D.parse(b) - D.parse(a)) / 864e5); },
     today() { return new Date().toISOString().slice(0, 10); },
   };
+  // forecast-core:start
+  // The forecast's arithmetic: pure functions, no DOM, nothing from outside this block (Node tests load it
+  // straight from this file). Month keys are "YYYY-MM", days "YYYY-MM-DD".
+  const FC = (() => {
+    const ym = (k) => [+k.slice(0, 4), +k.slice(5, 7)];
+    const key = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
+    function addMonths(k, n) { const [y, m] = ym(k); const t = y * 12 + (m - 1) + n; return key(Math.floor(t / 12), (t % 12 + 12) % 12 + 1); }
+    function monthSpan(a, b) { const out = []; for (let k = a; k <= b; k = addMonths(k, 1)) out.push(k); return out; }
+    const dim = (k) => { const [y, m] = ym(k); return new Date(Date.UTC(y, m, 0)).getUTCDate(); };
+    function lastFullMonth(day) { const k = day.slice(0, 7); return +day.slice(8, 10) === dim(k) ? k : addMonths(k, -1); }
+    // The window every baseline reads: 12 full months ending at the earliest source's last full month.
+    function forecastWindow(anchor, sourceDays) {
+      const to = [anchor, ...(sourceDays || [])].filter(Boolean).map(lastFullMonth).sort()[0];
+      const from = addMonths(to, -11);
+      return { from, to, months: monthSpan(from, to) };
+    }
+    function horizon(anchor, kind) {
+      const start = addMonths(anchor.slice(0, 7), 1);
+      const end = kind === "through_next_december" ? `${+anchor.slice(0, 4) + 1}-12` : addMonths(start, 11);
+      return monthSpan(start, end);
+    }
+    const lerp = (base, target, t, H) => H <= 1 ? target : base + (target - base) * (t - 1) / (H - 1);
+    // Each calendar month's value over the 24 months ending at endKey ÷ its centred 2×12 moving average,
+    // normalised to mean 1 (index 0 = January). Null without 24 full months.
+    function seasonality(byMonth, endKey) {
+      const ks = monthSpan(addMonths(endKey, -23), endKey);
+      const x = ks.map((k) => byMonth[k]);
+      if (x.some((v) => typeof v !== "number" || !isFinite(v))) return null;
+      const out = Array(12).fill(null);
+      for (let i = 6; i <= 17; i++) {
+        let ma = 0.5 * x[i - 6] + 0.5 * x[i + 6];
+        for (let j = i - 5; j <= i + 5; j++) ma += x[j];
+        ma /= 12;
+        if (!(ma > 0)) return null;
+        out[ym(ks[i])[1] - 1] = x[i] / ma;
+      }
+      const mean = out.reduce((a, v) => a + v, 0) / 12;
+      return mean > 0 ? out.map((v) => v / mean) : null;
+    }
+    // The forecast for t = 1…H. b holds the baselines, levers the targets the viewer set. The budget lever is
+    // the horizon's total, spread by spend seasonality; every other lever moves in a straight line from its
+    // baseline in month 1 to its target in month H (repeat is a multiplier from 1 on ages 1+).
+    function forecastModel(b, levers, H) {
+      const lv = levers || {};
+      const val = (k, base) => (lv[k] == null ? base : lv[k]);
+      const cacAt = (t) => lerp(b.cac, val("cac", b.cac), t, H);
+      for (let t = 1; t <= H; t++) { const c = cacAt(t); if (!(c > 0) || !isFinite(c)) return { error: "cac" }; }
+      if (b.margin == null || !isFinite(b.margin)) return { error: "margin" };
+      const curve = typeof b.curve === "function" ? b.curve : (k) => b.curve[Math.min(k, b.curve.length - 1)];
+      const cal = (t) => (b.startCal + t - 1) % 12;
+      const s = b.seasonSpend || Array(12).fill(1);
+      let sTot = 0; for (let t = 1; t <= H; t++) sTot += s[cal(t)];
+      const B = val("budget", b.budget);
+      const contributionOnly = b.fixed == null && lv.fixed_costs == null;
+      const fixBase = b.fixed == null ? 0 : b.fixed;
+      const N = [], rows = [];
+      let cum = 0, min = 0, minAt = null;
+      for (let t = 1; t <= H; t++) {
+        const budget = sTot > 0 ? B * s[cal(t)] / sTot : 0;
+        const cac = cacAt(t);
+        N.push(budget / cac);
+        const r0 = lerp(curve(0), val("first_month_revenue", curve(0)), t, H), rep = lerp(1, val("repeat", 1), t, H);
+        let newRev = 0;
+        for (let j = 1; j <= t; j++) { const age = t - j; newRev += N[j - 1] * (age === 0 ? r0 : curve(age) * rep); }
+        const baseRev = (b.baseRev || [])[t - 1] || 0;
+        const revenue = baseRev + newRev;
+        const margin = lerp(b.margin, val("margin", b.margin), t, H);
+        const grossProfit = revenue * margin;
+        const fixed = contributionOnly ? 0 : lerp(fixBase, val("fixed_costs", fixBase), t, H);
+        const operatingProfit = grossProfit - budget - fixed;
+        cum += operatingProfit;
+        if (cum < min) { min = cum; minAt = t - 1; }
+        rows.push({ budget, cac, newCustomers: N[t - 1], newRev, baseRev, revenue, grossProfit, fixed, operatingProfit, cumCash: cum });
+      }
+      const sum = (f) => rows.reduce((a, r) => a + r[f], 0);
+      const nTot = sum("newCustomers");
+      return { rows, totals: { revenue: sum("revenue"), newCustomers: nTot, budget: sum("budget"), cac: nTot > 0 ? sum("budget") / nTot : null, operatingProfit: sum("operatingProfit"), peakCash: Math.max(0, -min), peakIndex: minAt, contributionOnly } };
+    }
+    return { addMonths, monthSpan, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel };
+  })();
+  // forecast-core:end
   function toDay(v) {
     if (v == null) return null;
     const s = String(v).trim();
