@@ -264,6 +264,7 @@ def validate_forecast(cfg, queries, comps):
         op = b.get("op")
         need(op in BASELINE_OPS, f"forecast.baselines.{key}: op must be one of {sorted(BASELINE_OPS)}")
         need(b.get("label"), f"forecast.baselines.{key}: label is required")
+        need(b.get("format") in (None, *FORMATS), f"forecast.baselines.{key}: format must be one of {sorted(FORMATS)}")
         if op == "input":
             v = b.get("value")
             need(v is None or (isinstance(v, (int, float)) and not isinstance(v, bool)), f"forecast.baselines.{key}: input value is a number or null")
@@ -273,7 +274,8 @@ def validate_forecast(cfg, queries, comps):
             continue
         numbers(b, key)
         if op == "field":
-            q_of(key, b, ["static", "trailing"])
+            q = q_of(key, b, ["trailing"])
+            need(not q or q.get("months") == 12, f"forecast.baselines.{key}: a field is read over the window: its query is trailing with months: 12 (a 24-month query's first row is the oldest month)")
             need(b.get("value"), f"forecast.baselines.{key}: value (the column) is required")
         elif op == "series":
             q = q_of(key, b, ["trailing"])
@@ -295,7 +297,14 @@ def validate_forecast(cfg, queries, comps):
         elif op == "seasonality":
             need((bl.get(b.get("of")) or {}).get("op") == "series", f"forecast.baselines.{key}.of must name a series baseline")
     need((bl.get("revenue") or {}).get("op") == "series", "forecast.baselines.revenue: a revenue series is required")
-    for lv in fc.get("levers") or []:
+    if any(isinstance(b, dict) and b.get("op") == "cohort_curve" for b in bl.values()):
+        need((bl.get("aov") or {}).get("op") in ("field", "ratio") and (bl.get("customer_base") or {}).get("op") == "field",
+             "forecast.baselines: a cohort_curve needs aov (average order value) and customer_base (customers with an order in the window) for the page to fall back on when the acquisition date fails")
+    levers = fc.get("levers") or []
+    if not (isinstance(levers, list) and all(isinstance(x, str) for x in levers)):
+        errs.append(f"forecast.levers: a list of lever names {sorted(LEVERS)}; targets and ranges are never set in the config")
+        levers = []
+    for lv in levers:
         need(lv in LEVERS, f"forecast.levers: unknown lever '{lv}' (one of {sorted(LEVERS)})")
     for qid in forecast_queries(cfg):
         for f in ((queries.get(qid) or {}).get("input") or {}).get("filters") or []:
@@ -307,7 +316,10 @@ def validate_forecast(cfg, queries, comps):
 
 
 def warnings(cfg):
-    """Prose that quotes a figure: the page's numbers come from OWOX, the text should not repeat them."""
+    """Prose that quotes a figure: the page's numbers come from OWOX, the text should not repeat them.
+    Forecast configs only: a dashboard's notes legitimately quote thresholds."""
+    if not cfg.get("forecast"):
+        return []
     texts = [("lede", cfg.get("lede"))]
     for p in cfg.get("pages") or []:
         for c in p.get("components") or []:
