@@ -232,9 +232,9 @@ pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1p
 .help__pop a { color: var(--text-link); }
 /* Levers: a compact grid, one row on desktop when they fit. Every name reserves two lines so the tracks
    line up; the grey triangle under a track is the baseline, the handle is the target. */
-.levers { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 28px; }
+.levers { display: grid; grid-template-columns: repeat(auto-fit, minmax(146px, 1fr)); gap: 12px 22px; }
 .lever { display: grid; gap: 2px; min-width: 0; }
-.lever__name { display: flex; gap: 6px; align-items: center; margin: 0; min-width: 0; font: 500 13.5px/1.35 var(--font-body); }
+.lever__name { display: flex; gap: 6px; align-items: center; margin: 0; min-width: 0; min-height: 20px; font: 500 13.5px/1.35 var(--font-body); }
 .lever__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* While the viewer moves a lever, the chart below stays in view: the levers block sticks to the top on
    screens tall and wide enough to spare it. */
@@ -243,7 +243,7 @@ pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1p
 .lever__track { position: relative; height: 26px; display: flex; align-items: center; }
 .lever input[type=range] { width: 100%; margin: 0; accent-color: var(--metric); cursor: pointer; }
 .lever__mark { position: absolute; top: 19px; width: 0; height: 0; margin-left: -5px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--text-muted); pointer-events: none; }
-.lever__vals { display: flex; justify-content: space-between; gap: 8px; margin: 0; font: 400 11.5px/1.4 var(--font-mono); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lever__vals { display: flex; justify-content: space-between; gap: 6px; margin: 0; white-space: nowrap; font: 400 11.5px/1.4 var(--font-mono); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .lever__vals b { color: var(--text-primary); font-weight: 700; }
 .lever__vals em { font-style: normal; }
 .lever__vals .tgt, .lever__vals .tgt b { color: var(--metric); }
@@ -413,7 +413,7 @@ __THEME_CSS__
         const r0 = lerp(curve(0), val("first_month_revenue", curve(0)), t, H), rep = lerp(1, val("repeat", 1), t, H);
         let newRev = 0;
         for (let j = 1; j <= t; j++) { const age = t - j; newRev += N[j - 1] * (age === 0 ? r0 : curve(age) * rep); }
-        const baseRev = (b.baseRev || [])[t - 1] || 0;
+        const baseRev = ((b.baseRev || [])[t - 1] || 0) * lerp(1, val("existing", 1), t, H);
         const revenue = baseRev + newRev;
         const margin = lerp(b.margin, val("margin", b.margin), t, H);
         const grossProfit = revenue * margin;
@@ -619,26 +619,39 @@ __THEME_CSS__
       monthSpan(addMonths(win.to, -11), anchorMonth).forEach((k) => { history[k] = { revenue: revBy[k], spend: (series.spend || {})[k], newCustomers: (series.new_customers || {})[k] }; });
       return { mode, baselines: out, notes, fit, model: { b, H: H.length, horizonKeys: H, windowKeys: win.months, history, anchorMonth, window: win } };
     }
-    // Lever ranges are the engine's own: half to double the baseline; margin 0–100%; repeat ×0.5–×2.
-    function leverRange(key, base) {
+    // Lever ranges are the engine's own: half to double the baseline; margin 0–100%; fixed costs from 0 to
+    // double, or to half of existing customers' monthly revenue when the user left them out.
+    const avg = (xs) => (xs && xs.length ? xs.reduce((a, v) => a + (v || 0), 0) / xs.length : null);
+    function leverRange(key, base, b) {
       if (key === "margin") return [0, 1];
-      if (key === "repeat") return [0.5, 2];
+      if (key === "fixed_costs") { if (isNum(base) && base > 0) return [0, base * 2]; const m = b && avg(b.baseRev); return isNum(m) && m > 0 ? [0, m / 2] : null; }
       return isNum(base) && base > 0 ? [base / 2, base * 2] : null;
     }
+    // Every lever is shown in the unit people plan in: repeat revenue as dollars per customer over months
+    // 2–12, existing customers as dollars per month. toModelLevers turns those into the model's multipliers.
     function leverBase(key, b) {
-      return { budget: b.budget, cac: b.cac, first_month_revenue: b.curve ? b.curve(0) : null, repeat: 1, margin: b.margin, fixed_costs: b.fixed }[key];
+      const curve = typeof b.curve === "function" ? b.curve : (b.curve ? (k) => b.curve[Math.min(k, b.curve.length - 1)] : null);
+      if (key === "repeat") { if (!curve) return null; let s = 0; for (let k = 1; k <= 11; k++) s += curve(k); return s; }
+      if (key === "existing") return avg(b.baseRev);
+      if (key === "fixed_costs") return b.fixed == null ? 0 : b.fixed;
+      return { budget: b.budget, cac: b.cac, first_month_revenue: curve ? curve(0) : null, margin: b.margin }[key];
+    }
+    function toModelLevers(lv, b) {
+      const out = Object.assign({}, lv);
+      ["repeat", "existing"].forEach((k) => { if (out[k] == null) return; const base = leverBase(k, b); out[k] = base > 0 ? out[k] / base : 1; });
+      return out;
     }
     function restoreLevers(saved, b, keys) {
       const out = {};
       (keys || []).forEach((k) => {
-        const base = leverBase(k, b), r = leverRange(k, base), v = saved && saved[k];
+        const base = leverBase(k, b), r = leverRange(k, base, b), v = saved && saved[k];
         if (!r && base == null) return;
         out[k] = isNum(v) && r ? Math.min(r[1], Math.max(r[0], v)) : base;
       });
       return out;
     }
     return { addMonths, monthSpan, monthsBetween, lastFullMonth, forecastWindow, horizon, lerp, seasonality, forecastModel,
-      toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue, modelFit, evaluate, leverRange, leverBase, restoreLevers };
+      toDay, cohortMatrix, acquisitionValid, cohortCurve, noCurve, existingRevenue, modelFit, evaluate, leverRange, leverBase, toModelLevers, restoreLevers };
   })();
   // forecast-core:end
   function toDay(v) {
@@ -1705,12 +1718,11 @@ __THEME_CSS__
   }
 
   // ---------- forecast blocks ----------
-  const FC_FORMAT = { revenue: "currency", spend: "currency", cac: "currency", aov: "currency", fixed_costs: "currency", budget: "currency", first_month_revenue: "currency", new_customers: "number", customer_base: "number", margin: "percent", repeat: "ratio" };
+  const FC_FORMAT = { revenue: "currency", spend: "currency", cac: "currency", aov: "currency", fixed_costs: "currency", budget: "currency", first_month_revenue: "currency", new_customers: "number", customer_base: "number", margin: "percent", repeat: "currency", existing: "currency" };
   const fcFmt = (key, v, compact) => {
     const b = FCFG && FCFG.baselines[key];
     if (b && b.op === "cohort_curve") return fmt(v, "currency", compact);
     if (b && b.op === "seasonality") return Array.isArray(v) ? `×${nf({ maximumFractionDigits: 2 }).format(Math.min(...v))}–×${nf({ maximumFractionDigits: 2 }).format(Math.max(...v))}` : "flat";
-    if (key === "repeat") return isNum(v) ? `×${nf({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)}` : "—";
     if (b && b.op === "input" && v == null) return "left out";
     return fmt(v, (b && b.format) || FC_FORMAT[key] || "number", compact);
   };
@@ -1751,14 +1763,14 @@ __THEME_CSS__
     const b = st.model.b, have = (k) => !!(FCFG.baselines || {})[k];
     return (FCFG.levers || []).filter((k) => {
       if ((k === "budget" || k === "cac") && !have("spend")) return false;
-      if (k === "fixed_costs") return isNum(b.fixed) && b.fixed > 0;
+      if (k === "fixed_costs") return !!FC.leverRange(k, FC.leverBase(k, b), b);
       return FC.leverBase(k, b) != null;
     });
   }
   function fcRun() {
     const st = fcState(); if (!st || st.missing) return { st };
     const lv = FC.restoreLevers(leverSaved, st.model.b, leverKeys(st));
-    return { st, lv, res: FC.forecastModel(st.model.b, lv, st.model.H) };
+    return { st, lv, res: FC.forecastModel(st.model.b, FC.toModelLevers(lv, st.model.b), st.model.H) };
   }
   const horizonLabel = (st) => (FCFG.horizon === "through_next_december" ? `through December ${st.model.horizonKeys[st.model.H - 1].slice(0, 4)}` : `the next ${st.model.H} months`);
   function fcProblem(host, run) {
@@ -1781,7 +1793,8 @@ __THEME_CSS__
       budget: { name: "Ad budget", full: `Ad budget for ${horizonLabel(st)}; now: the last 12 months' spend`, src: bl.spend },
       cac: { name: "Blended CAC", full: "Blended CAC; now: the last 12 months", src: bl.cac },
       first_month_revenue: { name: "First-month revenue", full: "First-month revenue per new customer", src: curveKey ? bl[curveKey] : bl.aov },
-      repeat: { name: "Repeat revenue", full: "Repeat revenue: a multiplier on every month after the first, ×1.00 is the curve as measured", src: curveKey ? bl[curveKey] : null },
+      repeat: { name: "Repeat, mo 2–12", full: "Repeat revenue per new customer over months 2–12 after the first order", src: curveKey ? bl[curveKey] : null },
+      existing: { name: "Existing / month", full: "Monthly revenue from customers you already have (average over the horizon)", src: { kind: "Assumption", label: "Revenue from existing customers", rule: st.mode === "cohort_curve" ? "Customers won inside the loaded range follow the revenue curve at their age; older customers keep their own year-on-year trend" : "The window's repeat revenue, by revenue seasonality", inputs: [], window: st.model.window ? [st.model.window.from, st.model.window.to] : null } },
       margin: { name: "Gross margin", full: "Gross margin", src: bl.margin },
       fixed_costs: { name: "Fixed costs / month", full: "Fixed costs per month", src: bl.fixed_costs },
     }[k];
@@ -1791,7 +1804,7 @@ __THEME_CSS__
     const { st, lv } = run; const b = st.model.b;
     const box = el("div", "levers");
     leverKeys(st).forEach((k) => {
-      const base = FC.leverBase(k, b), r = FC.leverRange(k, base); if (!r) return;
+      const base = FC.leverBase(k, b), r = FC.leverRange(k, base, b); if (!r) return;
       const meta = leverMeta(k, st);
       const row = el("div", "lever");
       const kind = meta.src ? meta.src.kind : "Assumption";
@@ -1802,8 +1815,8 @@ __THEME_CSS__
       input.id = `lever-${k}`; input.setAttribute("aria-label", meta.name);
       const mark = el("span", "lever__mark"); mark.title = `Now: ${fcFmt(k, base)}`; mark.style.left = `calc(${(base - r[0]) / (r[1] - r[0])} * (100% - 16px) + 8px)`;
       track.append(input, mark); row.append(track);
-      const vals = el("p", "lever__vals"); const now = el("span"); now.title = kind; now.append(el("em", null, kind === "Your input" ? "Input " : "Now "), document.createTextNode(fcFmt(k, base, true)));
-      const tgt = el("span", "tgt"); const tv = el("b", null, fcFmt(k, lv[k], true)); tgt.append(el("em", null, "Target "), tv); vals.append(now, tgt); row.append(vals);
+      const vals = el("p", "lever__vals"); const now = el("span"); now.title = kind; now.append(el("em", null, kind === "Your input" ? "input " : "now "), document.createTextNode(fcFmt(k, base, true)));
+      const tgt = el("span", "tgt"); tgt.title = "Target: where the lever ends in the last month"; const tv = el("b", null, fcFmt(k, lv[k], true)); tgt.append(tv); vals.append(now, tgt); row.append(vals);
       input.addEventListener("input", () => { leverSaved[k] = +input.value; tv.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
       box.append(row);
     });
@@ -1922,7 +1935,7 @@ __THEME_CSS__
   }
   function forecastBlock(c) {
     const levers = c.type === "forecast_levers";
-    const { art, body } = block(c, c.title || "Forecast", levers ? { help: [c.description || "Move a lever and every number below follows.", "The grey triangle under a track is today's value; the handle is the target. Each lever moves in a straight line from today's value in the first month to the target in the last. Positions stay in this browser."] } : null);
+    const { art, body } = block(c, c.title || "Forecast", levers ? { help: [c.description || "Move a lever and every number below follows.", "The grey triangle and the grey number under a track are today's value; the handle and the blue number are the target. Each lever moves in a straight line from today's value in the first month to the target in the last. Positions stay in this browser."] } : null);
     if (c.type === "forecast_cards") art.classList.add("block--fstats");
     if (levers) {
       art.classList.add("block--sticky");

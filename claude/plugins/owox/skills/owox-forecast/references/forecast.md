@@ -62,13 +62,13 @@ Each calendar month's value over the 24 months to the window's end ÷ its centre
 For each horizon month t = 1…H:
 
 - budget_t = B × s_spend(t) ÷ Σ s_spend. B is the budget lever: the horizon's total.
-- CAC_t moves in a straight line from the baseline at t = 1 to the lever's target at t = H. So do first-month revenue, gross margin and fixed costs. Repeat is a multiplier on ages 1+, from 1 to its target.
+- CAC_t moves in a straight line from the baseline at t = 1 to the lever's target at t = H. So do first-month revenue, gross margin and fixed costs. Repeat revenue (per new customer, months 2–12, in money) and existing customers' monthly revenue are set in money and act as multipliers on the curve's ages 1+ and on existing customers' revenue, ramping from 1.
 - N_t = budget_t ÷ CAC_t new customers.
 - newRev_t = Σ_{j ≤ t} N_j × r(t − j).
 - revenue_t = existing customers' revenue_t + newRev_t; gross profit = revenue × margin.
 - operating profit_t = gross profit − budget − fixed costs; cumulative cash is its running sum; peak cash need = max(0, −lowest cumulative cash).
 
-Lever ranges are the engine's own: half to double the baseline; margin 0–100%; repeat ×0.5–×2. Positions stay in each viewer's browser; Reset returns to the baselines. The config never sets a target or a range.
+Lever ranges are the engine's own: half to double the baseline; margin 0–100%; fixed costs from 0 to double (or to half of existing customers' monthly revenue when the user left them out, so the lever is there to try). Positions stay in each viewer's browser; Reset returns to the baselines. The config never sets a target or a range.
 
 Blended CAC overstates how new customers scale with budget: at zero budget the model wins no one. Say so in the notes.
 

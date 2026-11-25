@@ -103,7 +103,7 @@ Used by the `owox-forecast` skill; a dashboard config has no `forecast` section.
     "margin":        { "op": "input", "label": "Gross margin", "value": 0.4, "source": "user answer", "quote": "our gross margin is about 40%" },
     "fixed_costs":   { "op": "input", "label": "Fixed costs per month", "value": null, "source": "user answer", "quote": "" }
   },
-  "levers": ["budget", "cac", "first_month_revenue", "repeat", "margin", "fixed_costs"]
+  "levers": ["budget", "cac", "first_month_revenue", "repeat", "existing", "margin", "fixed_costs"]
 }
 ```
 
@@ -112,7 +112,7 @@ Used by the `owox-forecast` skill; a dashboard config has no `forecast` section.
 | `horizon` | `next_12_months` or `through_next_december`, counted from the month after the anchor. |
 | `source_dates` | Static `MAX` queries of each source whose data may end before the anchor (ad spend). The window ends at the earliest source's last full month. |
 | `baselines` | Each `{ op, label, format?, … }` (`format` as for metrics; the page knows the usual keys, set it for any other field). `op`: `series` (a 24-month `trailing` query by `MONTH`: `date`, `value`), `field` (one value: `query`, `value`), `ratio` (`numerator` ÷ `denominator`, two baseline keys), `cohort_curve` (a `cohort` query; `sizes` names the new-customers series, counted by the same acquisition field), `seasonality` (`of`: a series), `input` (`value` a number or null, `source: "user answer"`, `quote`: the user's words). `ratio` and `cohort_curve` need `suggest`: the calculated field that would make them a Fact. Keys the page reads: `revenue` (required), `spend`, `new_customers`, `cac`, `margin`, `fixed_costs`, `aov` and `customer_base` (first order value and customer base when there is no valid acquisition date). |
-| `levers` | Which levers the page shows: `budget`, `cac`, `first_month_revenue`, `repeat`, `margin`, `fixed_costs`. Their ranges come from the engine, never from the config. |
+| `levers` | Which levers the page shows, in this order: `budget` (the horizon's total), `cac`, `first_month_revenue`, `repeat` (revenue per new customer over months 2–12, in money), `existing` (monthly revenue from customers you already have), `margin`, `fixed_costs` (shown from 0 when the user left them out). Their ranges come from the engine, never from the config. |
 
 Queries: `scope: "trailing"` takes `date_field` and `months` (24, a monthly series to the anchor; 12, the window itself). `scope: "cohort"` takes `acquired_field` and `ordered_field`, both bucketed by `MONTH`, `limit: 1000`. The page adds the date filters; a forecast query's own filters carry business rules only, never a number or a date.
 
