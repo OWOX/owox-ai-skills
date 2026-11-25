@@ -212,16 +212,20 @@ pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1p
 /* Forecast */
 .help__btn--assume { color: var(--warn); border-color: var(--warn); font-weight: 700; }
 .help__pop a { color: var(--text-link); }
-.levers { display: grid; gap: 16px; }
-.lever { display: grid; grid-template-columns: minmax(170px, 1.2fr) minmax(0, 2fr) minmax(96px, auto); gap: 4px 18px; align-items: center; }
-.lever__name { display: inline-flex; gap: 8px; align-items: center; font: 500 14px/1.35 var(--font-body); margin: 0; }
-.lever__base { margin: 0; font: 400 11.5px/1.4 var(--font-mono); color: var(--text-muted); grid-column: 1; }
-.lever__track { position: relative; grid-row: 1 / span 2; grid-column: 2; display: flex; align-items: center; }
+/* Levers: a compact grid, one row on desktop when they fit. Every name reserves two lines so the tracks
+   line up; the grey triangle under a track is the baseline, the handle is the target. */
+.levers { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 20px 28px; margin-top: 14px; }
+.lever { display: grid; gap: 4px; min-width: 0; }
+.lever__name { display: flex; gap: 6px; align-items: flex-start; margin: 0; height: 2.8em; font: 500 13.5px/1.35 var(--font-body); }
+.lever__name .help__btn { margin-top: 1px; }
+.lever__track { position: relative; height: 26px; display: flex; align-items: center; }
 .lever input[type=range] { width: 100%; margin: 0; accent-color: var(--metric); cursor: pointer; }
-.lever__mark { position: absolute; top: 50%; width: 2px; height: 18px; margin-top: -9px; background: var(--plan); opacity: .55; pointer-events: none; }
-.lever__val { grid-row: 1 / span 2; grid-column: 3; font: 700 14px var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
-.levers__bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-@media (max-width: 680px) { .lever { grid-template-columns: minmax(0, 1fr) auto; } .lever__track { grid-row: 3; grid-column: 1 / -1; } .lever__val { grid-row: 1; grid-column: 2; } }
+.lever__mark { position: absolute; top: 19px; width: 0; height: 0; margin-left: -5px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--text-muted); pointer-events: none; }
+.lever__vals { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0 0; font: 400 11.5px/1.4 var(--font-mono); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lever__vals b { color: var(--text-primary); font-weight: 700; }
+.lever__vals em { font-style: normal; }
+.lever__kind { margin: 0; font: 400 10px/1.3 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-decor); }
+.levers__bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
 .fcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 14px; }
 .card--fc { border-top-color: var(--metric); }
 .switch { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius); margin: 0 0 8px; }
@@ -1726,10 +1730,10 @@ __THEME_CSS__
     const bl = st.baselines;
     const curveKey = Object.keys(FCFG.baselines).find((x) => FCFG.baselines[x].op === "cohort_curve");
     return {
-      budget: { name: `Ad budget, ${horizonLabel(st)}`, src: bl.spend, base: "last 12 months, pro-rated" },
+      budget: { name: `Ad budget, ${horizonLabel(st)}`, src: bl.spend, base: "last 12 months" },
       cac: { name: "Blended CAC", src: bl.cac, base: "last 12 months" },
       first_month_revenue: { name: "First-month revenue per new customer", src: curveKey ? bl[curveKey] : bl.aov, base: "now" },
-      repeat: { name: "Repeat revenue", src: curveKey ? bl[curveKey] : null, base: "the curve as measured" },
+      repeat: { name: "Repeat revenue", src: curveKey ? bl[curveKey] : null, base: "as measured" },
       margin: { name: "Gross margin", src: bl.margin, base: "now" },
       fixed_costs: { name: "Fixed costs per month", src: bl.fixed_costs, base: "your input" },
     }[k];
@@ -1744,18 +1748,19 @@ __THEME_CSS__
       const row = el("div", "lever");
       const name = el("p", "lever__name", meta.name); const mk = kindMark(meta.src); if (mk) name.append(mk); row.append(name);
       const kind = meta.src ? meta.src.kind : "Assumption";
-      const baseLine = el("p", "lever__base"); baseLine.append(el("span", "tag", kind), document.createTextNode(`${fcFmt(k, base, true)} ${meta.base}`)); row.append(baseLine);
       const track = el("div", "lever__track");
       const input = el("input"); input.type = "range"; input.min = r[0]; input.max = r[1]; input.step = (r[1] - r[0]) / 200; input.value = lv[k];
-      input.setAttribute("aria-label", meta.name);
-      const mark = el("span", "lever__mark"); mark.style.left = `calc(${((base - r[0]) / (r[1] - r[0])) * 100}% - 1px)`;
+      input.id = `lever-${k}`; input.setAttribute("aria-label", meta.name);
+      const mark = el("span", "lever__mark"); mark.title = `Now: ${fcFmt(k, base)}`; mark.style.left = `calc(${(base - r[0]) / (r[1] - r[0])} * (100% - 16px) + 8px)`;
       track.append(input, mark); row.append(track);
-      const val = el("span", "lever__val", fcFmt(k, lv[k], true)); row.append(val);
-      input.addEventListener("input", () => { leverSaved[k] = +input.value; val.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
+      const vals = el("p", "lever__vals"); const now = el("span"); now.append(el("em", null, "Now "), document.createTextNode(fcFmt(k, base, true)));
+      const tgt = el("span"); const tv = el("b", null, fcFmt(k, lv[k], true)); tgt.append(el("em", null, "Target "), tv); vals.append(now, tgt); row.append(vals);
+      row.append(el("p", "lever__kind", `${kind} · ${meta.base}`));
+      input.addEventListener("input", () => { leverSaved[k] = +input.value; tv.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
       box.append(row);
     });
     const bar = el("div", "levers__bar");
-    bar.append(el("p", "desc", "The marker is the baseline. Each lever moves in a straight line from the baseline in the first month to where you set it in the last. Positions stay in this browser."));
+    bar.append(el("p", "desc", "The grey triangle is today's value. Each lever moves in a straight line from it in the first month to the target in the last. Positions stay in this browser."));
     const reset = el("button", "btn btn--ghost btn--sm", "Reset"); reset.type = "button";
     reset.addEventListener("click", () => { leverSaved = {}; saveLevers(); renderAll(); });
     bar.append(reset);
