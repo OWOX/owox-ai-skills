@@ -228,6 +228,12 @@ pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1p
 .lever__vals { display: flex; justify-content: space-between; gap: 8px; margin: 0; font: 400 11.5px/1.4 var(--font-mono); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .lever__vals b { color: var(--text-primary); font-weight: 700; }
 .lever__vals em { font-style: normal; }
+.lever__vals .tgt, .lever__vals .tgt b { color: var(--metric); }
+.fc-lede { margin: 0 0 14px; font-size: 16px; line-height: 1.55; color: var(--text-primary); max-width: 95ch; }
+.fc-lede b { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* A forecast-only page keeps one short line under Refresh instead of the full data line. */
+.top--fc .asof { grid-column: 2; justify-self: end; text-align: right; margin: -4px 0 0; }
+@media (max-width: 680px) { .top--fc .asof { grid-column: 1; justify-self: start; text-align: left; } }
 
 .fcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 14px; }
 .card--fc { border-top-color: var(--metric); }
@@ -1596,17 +1602,22 @@ __THEME_CSS__
   }
 
   // ---------- summary (templated from the same numbers) ----------
-  function renderSummary() {
-    if (FCFG) {
-      const box = $("summary"); const run = fcRun();
-      if (!run.res || run.res.error) { box.hidden = true; return; }
+  // The forecast in one sentence: on the chart when the page has one, else at the top.
+  const FC_CHART = PAGES.some((p) => (p.components || []).some((c) => c.type === "forecast_chart"));
+  function fcSentence(run) {
       const t = run.res.totals, p = el("p"), b = (v) => el("b", null, v);
       p.append(document.createTextNode(`Over ${horizonLabel(run.st)} the model expects `), b(fmt(t.revenue, "currency", true)), document.createTextNode(" revenue"));
       if (FCFG.baselines.spend) p.append(document.createTextNode(", "), b(fmt(t.newCustomers, "number", true)), document.createTextNode(" new customers at "), b(fmt(t.cac, "currency")), document.createTextNode(" each"));
       p.append(document.createTextNode(`, and ${t.contributionOnly ? "a contribution" : "operating profit"} of `), b(fmt(t.operatingProfit, "currency", true)));
       if (t.peakCash > 0) p.append(document.createTextNode("; cash bottoms out at "), b("−" + fmt(t.peakCash, "currency", true)), document.createTextNode(` in ${fmtMonthKey(run.st.model.horizonKeys[t.peakIndex])}`));
       p.append(document.createTextNode(". Every figure here is an Estimate."));
-      box.replaceChildren(p); box.hidden = false; return;
+      return p;
+  }
+  function renderSummary() {
+    if (FCFG) {
+      const box = $("summary"); const run = fcRun();
+      if (FC_CHART || !run.res || run.res.error) { box.hidden = true; return; }
+      box.replaceChildren(fcSentence(run)); box.hidden = false; return;
     }
     const box = $("summary"); const ids = CFG.summary_metrics || [];
     if (!ids.length || !anchor) { box.hidden = true; return; }
@@ -1758,7 +1769,7 @@ __THEME_CSS__
       const mark = el("span", "lever__mark"); mark.title = `Now: ${fcFmt(k, base)}`; mark.style.left = `calc(${(base - r[0]) / (r[1] - r[0])} * (100% - 16px) + 8px)`;
       track.append(input, mark); row.append(track);
       const vals = el("p", "lever__vals"); const now = el("span"); now.title = kind; now.append(el("em", null, kind === "Your input" ? "Input " : "Now "), document.createTextNode(fcFmt(k, base, true)));
-      const tgt = el("span"); const tv = el("b", null, fcFmt(k, lv[k], true)); tgt.append(el("em", null, "Target "), tv); vals.append(now, tgt); row.append(vals);
+      const tgt = el("span", "tgt"); const tv = el("b", null, fcFmt(k, lv[k], true)); tgt.append(el("em", null, "Target "), tv); vals.append(now, tgt); row.append(vals);
       input.addEventListener("input", () => { leverSaved[k] = +input.value; tv.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
       box.append(row);
     });
@@ -1792,6 +1803,7 @@ __THEME_CSS__
   function forecastChartBlock(host, c) {
     const run = fcRun(); if (fcProblem(host, run)) return;
     const { st, res } = run; const m = st.model;
+    const lede = fcSentence(run); lede.className = "fc-lede"; host.append(lede);
     const mode = fcMode[c.id] || "profit";
     const sw = el("div", "switch"); [["profit", res.totals.contributionOnly ? "Contribution" : "Operating profit"], ["cash", "Cumulative cash"]].forEach(([k, t]) => { const bt = el("button", null, t); bt.type = "button"; bt.setAttribute("aria-pressed", String(mode === k)); bt.addEventListener("click", () => { fcMode[c.id] = k; rerenderForecast(); }); sw.append(bt); });
     const lg = el("div", "legend"); const add = (cls, t) => { const s0 = el("span"); s0.append(el("i", cls), document.createTextNode(t)); lg.append(s0); };
@@ -1871,7 +1883,7 @@ __THEME_CSS__
       const reset = el("button", "btn btn--ghost btn--sm", "Reset"); reset.type = "button"; reset.title = "Return every lever to today's value";
       reset.addEventListener("click", () => { leverSaved = {}; saveLevers(); renderAll(); });
       art.querySelector(".block__head").append(reset);
-    } else if (c.description) body.append(el("p", "desc", c.description));
+    } else if (c.description && c.type !== "forecast_chart") body.append(el("p", "desc", c.description));
     const host = el("div", c.type === "forecast_chart" ? "chart" : null);
     if (c.type === "forecast_levers") leversBlock(host, c);
     else if (c.type === "forecast_cards") cardsBlock(host);
@@ -1940,7 +1952,12 @@ __THEME_CSS__
     if (anchor) parts.push(`Data through ${fmtDay(anchor)}`);
     if (stamps.length) parts.push(stamps[0] === stamps[stamps.length - 1] ? `source tables updated ${fmtStamp(stamps[0])}` : `source tables updated ${fmtStamp(stamps[0])} – ${fmtStamp(stamps[stamps.length - 1])}`);
     if (anchor && !FC_ONLY) { const w = winOf(period, anchor); parts.push(`${winLabel(w.cur)} vs ${winLabel(w.cmp)}`); }
-    if (FCFG && anchor) { const w = fcWindow(); if (w) parts.push(`baselines read over ${fmtMonth(w.from + "-01")} ${w.from.slice(0, 4)} – ${fmtMonth(w.to + "-01")} ${w.to.slice(0, 4)}`); }
+    if (FC_ONLY) {
+      const short = [anchor ? `Data through ${fmtDay(anchor)}` : null, servedFromCopy && copy ? `your copy from ${fmtStamp(new Date(copy.savedAt).toISOString())}` : null].filter(Boolean);
+      if (short.length) $("asof").textContent = short.join(" · ");
+      $("asof").title = parts.join(" · ");
+      renderProgress(); return;
+    }
     if (servedFromCopy && copy) parts.unshift(`Your copy from ${fmtStamp(new Date(copy.savedAt).toISOString())}: Refresh data for live numbers`);
     if (parts.length) $("asof").textContent = parts.join(" · ");
     renderProgress();
@@ -2267,6 +2284,7 @@ __THEME_CSS__
   })();
   const sel = $("period");
   if (!CFG.anchor || FC_ONLY) sel.hidden = true;
+  if (FC_ONLY) document.querySelector(".top").classList.add("top--fc");
   periodKeys.forEach((k) => { const o = el("option", null, PERIODS[k].label); o.value = k; if (k === period) o.selected = true; sel.append(o); });
   const cmpSel = $("compare");
   const showCompare = () => {
