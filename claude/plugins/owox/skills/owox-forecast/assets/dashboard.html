@@ -244,6 +244,13 @@ pre.cfg { margin: 0; padding: 8px 12px; background: var(--bg-nested); border: 1p
 .select--sm { height: 26px; padding: 0 8px; font-size: 12.5px; max-width: 240px; }
 .scn-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
 .scn-form input { height: 28px; padding: 0 10px; min-width: 0; flex: 1 1 220px; max-width: 360px; background: var(--bg-nested); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius); font: 400 13px var(--font-body); }
+.scn { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.icon-btn { color: var(--text-secondary); }
+.icon-btn:hover { color: var(--text-primary); }
+.icon-btn svg { width: 16px; height: 16px; }
+.xport--on .xport__btn { opacity: 1; }
+.scn-ask { font: 400 12px var(--font-mono); color: var(--text-secondary); }
+.scn-opt { display: inline-flex; align-items: center; gap: 4px; font: 400 12.5px var(--font-body); color: var(--text-secondary); cursor: pointer; }
 .scn-msg { margin: 0 0 10px; font: 400 12px/1.5 var(--font-mono); color: var(--warn); }
 .lever__track { position: relative; height: 26px; display: flex; align-items: center; }
 .lever input[type=range] { width: 100%; margin: 0; accent-color: var(--metric); cursor: pointer; }
@@ -1828,55 +1835,103 @@ __THEME_CSS__
     }, () => {});
   }
   const scenarioOf = (v) => { const [uid, i] = String(v).split("|"); const owner = scenarios.find((x) => x.uid === uid); return owner && owner.items[+i] ? { uid, i: +i, item: owner.items[+i] } : null; };
-  async function writeMine(items) { await db.doc(`scenarios/${me}`).set({ items, at: Date.now() }); }
+  // Write my scenarios, then show them at once: the shared snapshot arrives a moment later.
+  async function writeMine(items) {
+    await db.doc(`scenarios/${me}`).set({ items, at: Date.now() });
+    const mine = scenarios.find((x) => x.uid === me);
+    if (mine) mine.items = items; else scenarios.push({ uid: me, items });
+  }
+  function refreshScenarioHead(c) {
+    const art = $(`c-${c.id}`); const old = art && art.querySelector(".block__head .scn"); const st = fcState();
+    if (!old || !st || st.missing) return;
+    setTimeout(() => { const now = art.querySelector(".block__head .scn"); if (now) now.replaceWith(scenarioControls(st)); }, 0);
+  }
+  // Icons in the levers head: quiet like the Sheets export, in the text colour.
+  const ICON = {
+    save: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3"/><path d="M8 21v-7h8v7"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>',
+    download: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>',
+  };
+  function iconBtn(kind, label, onClick, cls) {
+    const box = el("span", "xport" + (cls ? " " + cls : ""));
+    const b = el("button", "xport__btn icon-btn"); b.type = "button"; b.setAttribute("aria-label", label); b.innerHTML = ICON[kind];
+    b.addEventListener("click", onClick);
+    box.append(b, el("span", "xport__tip", label)); return box;
+  }
+  const SCN_KEY = LEVER_KEY + ":scenario";
+  try { scenarioSel = localStorage.getItem(SCN_KEY) || ""; } catch (_) { scenarioSel = ""; }
+  const setScenario = (v) => { scenarioSel = v; try { localStorage.setItem(SCN_KEY, v); } catch (_) {} };
+  // The levers a scenario sets (Default: today's values), clamped to today's ranges.
+  function scenarioLevers(st, v) { const s0 = scenarioOf(v); return FC.restoreLevers(s0 ? s0.item.levers : null, st.model.b, leverKeys(st)); }
+  function isDirty(st, lv) {
+    const ref = scenarioLevers(st, scenarioSel);
+    return Object.keys(ref).some((k) => { const a = ref[k], b = lv[k]; return isNum(a) && isNum(b) && Math.abs(a - b) > Math.max(1e-9, Math.abs(a) * 1e-4); });
+  }
+  let confirmDelete = false;
   function scenarioControls(st) {
-    const wrap = el("span", "scn"); wrap.style.display = "inline-flex"; wrap.style.gap = "6px"; wrap.style.alignItems = "center";
-    const all = scenarios.flatMap((o) => o.items.map((it, i) => ({ v: `${o.uid}|${i}`, it, o })));
-    if (all.length) {
-      const sel = el("select", "select select--sm"); sel.id = "scenario"; sel.setAttribute("aria-label", "Saved scenarios");
-      const ph = el("option", null, `Scenarios (${all.length})`); ph.value = ""; sel.append(ph);
-      scenarios.forEach((o) => {
-        if (!o.items.length) return;
-        const g = el("optgroup"); g.label = o.uid === me ? "Yours" : ((scenarioNames[o.uid] && scenarioNames[o.uid].name) || "Someone");
-        o.items.forEach((it, i) => { const op = el("option", null, it.name); op.value = `${o.uid}|${i}`; g.append(op); });
-        sel.append(g);
-      });
-      sel.value = scenarioOf(scenarioSel) ? scenarioSel : "";
-      sel.addEventListener("change", () => { const s0 = scenarioOf(sel.value); scenarioSel = sel.value; if (s0) { leverSaved = Object.assign({}, s0.item.levers); saveLevers(); } renderAll(); });
-      wrap.append(sel);
-      const cur = scenarioOf(scenarioSel);
-      if (cur && cur.uid === me) {
-        const del = el("button", "btn btn--ghost btn--sm", "Delete"); del.type = "button"; del.title = `Delete “${cur.item.name}”`;
-        del.addEventListener("click", async () => { const mine = (scenarios.find((x) => x.uid === me) || { items: [] }).items.filter((_, j) => j !== cur.i); try { await writeMine(mine); scenarioSel = ""; scenarioMsg = ""; } catch (_) { scenarioMsg = "Not deleted: the page could not write to its shared storage."; } renderAll(); });
-        wrap.append(del);
+    const wrap = el("span", "scn");
+    const sel = el("select", "select select--sm"); sel.id = "scenario"; sel.setAttribute("aria-label", "Scenario");
+    const def = el("option", null, "Default"); def.value = ""; sel.append(def);
+    scenarios.forEach((o) => {
+      if (!o.items.length) return;
+      const g = el("optgroup"); g.label = o.uid === me ? "Yours" : ((scenarioNames[o.uid] && scenarioNames[o.uid].name) || "Someone");
+      o.items.forEach((it, i) => { const op = el("option", null, it.name); op.value = `${o.uid}|${i}`; g.append(op); });
+      sel.append(g);
+    });
+    if (!scenarioOf(scenarioSel)) setScenario("");
+    sel.value = scenarioSel;
+    const lv = fcRun().lv || {};
+    const dirty = isDirty(st, lv);
+    const cur = sel.options[sel.selectedIndex]; if (cur && dirty) cur.textContent += " (edited)";
+    sel.addEventListener("change", () => { setScenario(sel.value); confirmDelete = false; saveOpen = false; const s0 = scenarioOf(sel.value); leverSaved = s0 ? Object.assign({}, s0.item.levers) : {}; saveLevers(); renderAll(); });
+    wrap.append(sel);
+    if (db && me && dirty) wrap.append(iconBtn("save", "Save these levers as a scenario", () => { saveOpen = !saveOpen; scenarioMsg = ""; renderAll(); setTimeout(() => { const i = $("scenario-name"); if (i) i.focus(); }, 0); }, "xport--on"));
+    const mineSel = scenarioOf(scenarioSel);
+    if (mineSel && mineSel.uid === me) {
+      if (!confirmDelete) wrap.append(iconBtn("trash", `Delete “${mineSel.item.name}”`, () => { confirmDelete = true; renderAll(); }, "xport--on"));
+      else {
+        const ask = el("span", "scn-ask", `Delete “${mineSel.item.name}”?`);
+        const yes = el("button", "btn btn--ghost btn--sm", "Delete"); yes.type = "button";
+        yes.addEventListener("click", async () => { const mine = (scenarios.find((x) => x.uid === me) || { items: [] }).items.filter((_, j) => j !== mineSel.i); try { await writeMine(mine); setScenario(""); leverSaved = {}; saveLevers(); scenarioMsg = ""; } catch (_) { scenarioMsg = "Not deleted: the page could not write to its shared storage."; } confirmDelete = false; renderAll(); });
+        const no = el("button", "btn btn--ghost btn--sm", "Keep"); no.type = "button"; no.addEventListener("click", () => { confirmDelete = false; renderAll(); });
+        wrap.append(ask, yes, no);
       }
     }
-    if (db && me) {
-      const save = el("button", "btn btn--ghost btn--sm", "Save scenario"); save.type = "button";
-      save.addEventListener("click", () => { saveOpen = !saveOpen; scenarioMsg = ""; renderAll(); setTimeout(() => { const i = $("scenario-name"); if (i) i.focus(); }, 0); });
-      wrap.append(save);
-    }
-    if (downloadsApi) {
-      const dl = el("button", "btn btn--ghost btn--sm", "Download"); dl.type = "button"; dl.title = "Download the forecast as a CSV file: levers, months, baselines";
-      dl.addEventListener("click", () => downloadForecast());
-      wrap.append(dl);
-    }
+    if (downloadsApi) wrap.append(iconBtn("download", "Download the forecast (CSV): levers, months, baselines", () => downloadForecast()));
     return wrap;
   }
+  // Saving asks whether to create a new scenario or update one of yours.
   function saveForm(host) {
+    const mine = (scenarios.find((x) => x.uid === me) || { items: [] }).items;
+    const cur = scenarioOf(scenarioSel); const curMine = cur && cur.uid === me ? cur.i : null;
     const f = el("form", "scn-form");
-    const inp = el("input"); inp.id = "scenario-name"; inp.type = "text"; inp.maxLength = 60; inp.placeholder = "Name this scenario, e.g. Budget +30%"; inp.setAttribute("aria-label", "Scenario name");
-    inp.value = saveName; inp.addEventListener("input", () => { saveName = inp.value; });
+    const mode = (v, text) => { const l = el("label", "scn-opt"); const r = el("input"); r.type = "radio"; r.name = "scn-mode"; r.value = v; r.id = `scn-mode-${v}`; l.append(r, document.createTextNode(text)); return { l, r }; };
+    const nw = mode("new", "New"); const inp = el("input"); inp.id = "scenario-name"; inp.type = "text"; inp.maxLength = 60; inp.placeholder = "Name, e.g. Budget +30%"; inp.setAttribute("aria-label", "New scenario name"); inp.value = saveName;
+    inp.addEventListener("input", () => { saveName = inp.value; nw.r.checked = true; });
+    f.append(nw.l, inp);
+    let up = null, upSel = null;
+    if (mine.length) {
+      up = mode("update", "Update"); upSel = el("select", "select select--sm"); upSel.id = "scenario-update"; upSel.setAttribute("aria-label", "Scenario to update");
+      mine.forEach((it, i) => { const op = el("option", null, it.name); op.value = String(i); upSel.append(op); });
+      if (curMine != null) upSel.value = String(curMine);
+      upSel.addEventListener("change", () => { up.r.checked = true; });
+      f.append(up.l, upSel);
+    }
+    (curMine != null && up ? up : nw).r.checked = true;
     const ok = el("button", "btn btn--ghost btn--sm", "Save"); ok.type = "submit";
     const no = el("button", "btn btn--ghost btn--sm", "Cancel"); no.type = "button"; no.addEventListener("click", () => { saveOpen = false; renderAll(); });
-    f.append(inp, ok, no);
+    f.append(ok, no);
     f.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const name = inp.value.trim(); if (!name) { inp.focus(); return; }
       const run = fcRun(); if (!run.lv) return;
-      const mine = (scenarios.find((x) => x.uid === me) || { items: [] }).items.filter((i) => i.name !== name);
-      const next = [...mine, { name, levers: Object.assign({}, run.lv), at: Date.now() }].slice(-20);
-      try { await writeMine(next); saveOpen = false; saveName = ""; scenarioMsg = ""; scenarioSel = `${me}|${next.length - 1}`; }
+      const levers = Object.assign({}, run.lv);
+      let next, at;
+      if (up && up.r.checked) { at = +upSel.value; next = mine.map((it, i) => (i === at ? { name: it.name, levers, at: Date.now() } : it)); }
+      else {
+        const name = inp.value.trim(); if (!name) { inp.focus(); return; }
+        next = [...mine.filter((i) => i.name !== name), { name, levers, at: Date.now() }].slice(-20); at = next.length - 1;
+      }
+      try { await writeMine(next); saveOpen = false; saveName = ""; scenarioMsg = ""; setScenario(`${me}|${at}`); leverSaved = levers; saveLevers(); }
       catch (_) { scenarioMsg = "Not saved: your access to this page lets you view scenarios, not save them. Ask its owner for the Contributor role."; }
       renderAll();
     });
@@ -1917,7 +1972,7 @@ __THEME_CSS__
       track.append(input, mark); row.append(track);
       const vals = el("p", "lever__vals"); const now = el("span"); now.title = kind; now.append(el("em", null, kind === "Your input" ? "input " : "now "), document.createTextNode(fcFmt(k, base, true)));
       const tgt = el("span", "tgt"); tgt.title = "Target: where the lever ends in the last month"; const tv = el("b", null, fcFmt(k, lv[k], true)); tgt.append(tv); vals.append(now, tgt); row.append(vals);
-      input.addEventListener("input", () => { if (scenarioSel) { scenarioSel = ""; const s0 = $("scenario"); if (s0) s0.value = ""; } leverSaved[k] = +input.value; tv.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
+      input.addEventListener("input", () => { leverSaved[k] = +input.value; refreshScenarioHead(c); tv.textContent = fcFmt(k, +input.value, true); saveLevers(); rerenderForecast(c.id); });
       box.append(row);
     });
     host.append(box);
@@ -2039,10 +2094,7 @@ __THEME_CSS__
     if (c.type === "forecast_cards") art.classList.add("block--fstats");
     if (levers) {
       art.classList.add("block--sticky");
-      const reset = el("button", "btn btn--ghost btn--sm", "Reset"); reset.type = "button"; reset.title = "Return every lever to today's value";
-      reset.addEventListener("click", () => { leverSaved = {}; scenarioSel = ""; saveLevers(); renderAll(); });
-      const run0 = fcRun(); if (run0.st && !run0.st.missing) art.querySelector(".block__head").append(scenarioControls(run0.st));
-      art.querySelector(".block__head").append(reset);
+      const run0 = fcRun(); if (run0.st && !run0.st.missing && run0.lv) art.querySelector(".block__head").append(scenarioControls(run0.st));
     } else if (c.description && c.type !== "forecast_chart") body.append(el("p", "desc", c.description));
     const host = el("div", c.type === "forecast_chart" ? "chart" : null);
     if (c.type === "forecast_levers") leversBlock(host, c);
@@ -2191,7 +2243,7 @@ __THEME_CSS__
     const box = el("span", "xport" + (xstate[c.id] && xstate[c.id].busy ? " xport--busy" : ""));
     const b = el("button", "xport__btn"); b.type = "button"; b.setAttribute("aria-label", "Export to Google Sheets"); b.innerHTML = SHEETS_ICON;
     b.addEventListener("click", () => { const st = xstate[c.id]; if (st && st.hidden) { st.hidden = false; renderAll(); return; } startExport(c); });
-    const tipText = FC_TYPES.has(c.type) ? "Export the source data to Google Sheets (the forecast itself: Download)" : "Export to Google Sheets";
+    const tipText = FC_TYPES.has(c.type) ? "Export the source data to Google Sheets (the forecast itself: the download icon on Levers)" : "Export to Google Sheets";
     b.setAttribute("aria-label", tipText);
     box.append(b, el("span", "xport__tip", tipText));
     return box;
