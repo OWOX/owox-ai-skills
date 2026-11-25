@@ -6,3 +6,4 @@ config.json
 dashboard.html
 # the skill's engine has the same name and ships with the plugin
 !claude/plugins/owox/skills/owox-dashboard/assets/dashboard.html
+!claude/plugins/owox/skills/owox-forecast/assets/dashboard.html
